@@ -1,14 +1,14 @@
 version: "3.9"
 x-clickhouse-credentials: &clickhouse-credentials
-  CLICKHOUSE_USER: dittofeed
-  CLICKHOUSE_PASSWORD: password
+  CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
 x-backend-app-env: &backend-app-env
   <<: *clickhouse-credentials
   NODE_ENV: development
   DATABASE_URL: "postgresql://postgres:password@postgres:5432/dittofeed?connect_timeout=60"
   KAFKA_BROKERS: "kafka:29092"
-  KAFKA_USERNAME: "admin"
-  KAFKA_PASSWORD: "password"
+  KAFKA_USERNAME: ${KAFKA_USERNAME}
+  KAFKA_PASSWORD: ${KAFKA_PASSWORD}
   KAFKA_ENABLE_ADMIN_SASL: "false"
   CLICKHOUSE_HOST: "http://clickhouse-server:8123"
   TEMPORAL_ADDRESS: "temporal:7233"
@@ -117,8 +117,8 @@ services:
     environment:
       - DB=postgresql
       - DB_PORT=5432
-      - POSTGRES_USER=postgres
-      - POSTGRES_PWD=password
+      - POSTGRES_USER=${DATABASE_USER}
+      - POSTGRES_PWD=${DATABASE_PASSWORD}
       - POSTGRES_SEEDS=postgres
       - BIND_ON_IP=0.0.0.0
     image: temporalio/auto-setup:1.18.5
@@ -148,9 +148,9 @@ services:
     image: "postgres:15"
     restart: always
     environment:
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: dittofeed
-      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USER}
     ports:
       - "5432:5432"
     volumes:
@@ -347,8 +347,8 @@ services:
       - "9010:9000"
       - "9011:9001"
     environment:
-      MINIO_ROOT_USER: admin
-      MINIO_ROOT_PASSWORD: password
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - blob-storage:/data
     command: server --console-address ":9001" /data
