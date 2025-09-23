@@ -111,7 +111,7 @@ services:
     networks:
       - dittofeed-network-dev
   temporal:
-    container_name: temporal
+    container_name: dittofeed-temporal
     depends_on:
       - postgres
     environment:
@@ -130,7 +130,7 @@ services:
       - 7233:7233
   temporal-ui:
     profiles: ["temporal-ui"]
-    container_name: temporal-ui
+    container_name: dittofeed-temporal-ui
     restart: always
     logging:
       driver: "local"
@@ -307,7 +307,7 @@ services:
   zipkin:
     image: openzipkin/zipkin
     profiles: ["otel"]
-    container_name: zipkin
+    container_name: dittofeed-zipkin
     ports:
       - 9411:9411
     networks:
