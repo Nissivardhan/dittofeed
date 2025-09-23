@@ -120,6 +120,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PWD=password
       - POSTGRES_SEEDS=postgres
+      - BIND_ON_IP=0.0.0.0
     image: temporalio/auto-setup:1.18.5
     labels:
       kompose.volume.type: configMap
