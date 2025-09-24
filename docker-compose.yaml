@@ -19,7 +19,7 @@ services:
     build:
       context: .
       dockerfile: ./packages/dashboard/Dockerfile
-    profiles: ["apps", "apps-api", "apps-worker"]
+    restart: unless-stopped
     volumes:
       - ./mnt:/dittofeed-mnt
     ports:
@@ -37,7 +37,7 @@ services:
     build:
       context: .
       dockerfile: ./packages/api/Dockerfile
-    profiles: ["apps", "apps-dashboard", "apps-worker"]
+    restart: unless-stopped
     volumes:
       - ./mnt:/dittofeed-mnt
     ports:
@@ -55,7 +55,7 @@ services:
     build:
       context: .
       dockerfile: ./packages/worker/Dockerfile
-    profiles: ["apps", "apps-dashboard", "apps-api"]
+    restart: unless-stopped
     volumes:
       - ./mnt:/dittofeed-mnt
     depends_on:
