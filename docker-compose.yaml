@@ -44,7 +44,7 @@ services:
       PORT: ${PORT_ENV}
     networks:
       - dittofeed-network-dev
-  api:
+  dittofeed-api:
     container_name: dittofeed-api
     build:
       context: .
@@ -72,7 +72,7 @@ services:
       BOOTSTRAP_EVENTS: true
     networks:
       - dittofeed-network-dev
-  worker:
+  dittofeed-worker:
     container_name: dittofeed-worker
     build:
       context: .
@@ -137,7 +137,7 @@ services:
       - ./packages/worker/src:/service/packages/worker/src
     networks:
       - dittofeed-network-dev
-  temporal:
+  dittofeed-temporal:
     container_name: dittofeed-temporal
     healthcheck:  
       test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/7233'"]
@@ -178,7 +178,7 @@ services:
       - dittofeed-network-dev
     ports:
       - 8080:8080
-  postgres:
+  dittofeed-postgres:
     container_name: dittofeed-postgres
     image: "postgres:15"
     restart: always
@@ -316,7 +316,7 @@ services:
         rpk cluster config set superusers '["admin"]' --brokers kafka:29092 --api-urls http://kafka:9644
     networks:
       - dittofeed-network-dev
-  clickhouse-server:
+  dittofeed-clickhouse-server:
     container_name: dittofeed-clickhouse
     image: clickhouse/clickhouse-server:24.12.6.70-alpine
     healthcheck:
