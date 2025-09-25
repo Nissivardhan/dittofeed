@@ -4,7 +4,7 @@ x-clickhouse-credentials: &clickhouse-credentials
   CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
 x-backend-app-env: &backend-app-env
   <<: *clickhouse-credentials
-  NODE_ENV: development
+  NODE_ENV: ${NODE_ENV}
   KAFKA_BROKERS: "kafka:29092"
   KAFKA_USERNAME: ${KAFKA_USERNAME}
   KAFKA_PASSWORD: ${KAFKA_PASSWORD}
