@@ -19,6 +19,12 @@ services:
       context: .
       dockerfile: ./packages/dashboard/Dockerfile
     restart: unless-stopped
+    healthcheck:  
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     volumes:
       - ./mnt:/dittofeed-mnt
     ports:
@@ -46,6 +52,12 @@ services:
       context: .
       dockerfile: ./packages/api/Dockerfile
     restart: unless-stopped
+    healthcheck:  
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     volumes:
       - ./mnt:/dittofeed-mnt
     ports:
@@ -71,6 +83,12 @@ services:
       context: .
       dockerfile: ./packages/worker/Dockerfile
     restart: unless-stopped
+    healthcheck:  
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     volumes:
       - ./mnt:/dittofeed-mnt
     depends_on:
@@ -163,6 +181,12 @@ services:
   postgres:
     image: "postgres:15"
     restart: always
+    healthcheck:  
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     environment:
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_DB: ${DATABASE_NAME}
@@ -293,6 +317,12 @@ services:
       - dittofeed-network-dev
   clickhouse-server:
     image: clickhouse/clickhouse-server:24.12.6.70-alpine
+    healthcheck:  
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     ports:
       - "8123:8123"
       - "9000:9000"
@@ -358,6 +388,7 @@ services:
       - dittofeed-network-dev
   # Note that minio is only used for local development. In production, use any S3-compatible storage.
   blob-storage:
+    profiles: ["minio"]
     image: minio/minio
     ports:
       - "9010:9000"
