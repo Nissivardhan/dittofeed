@@ -143,7 +143,7 @@ services:
       retries: 3
       start_period: 40s
     depends_on:
-      - postgres
+      - dittofeed-postgres
     environment:
       - DB=postgresql
       - DB_PORT=5432
