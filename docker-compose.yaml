@@ -30,6 +30,8 @@ services:
       - ./mnt:/dittofeed-mnt
     ports:
       - "3000:3000"
+    labels:
+      - "traefik.http.services.dittofeed-dashboard.loadbalancer.server.port=3000"
     depends_on:
       - postgres
       - temporal
