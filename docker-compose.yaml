@@ -20,19 +20,14 @@ services:
       context: .
       dockerfile: ./packages/dashboard/Dockerfile
     restart: unless-stopped
-    healthcheck:  
-      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     volumes:
       - ./mnt:/dittofeed-mnt
-    ports:
-      - "3000:3000"
-    labels:
-      - "traefik.http.services.dittofeed-dashboard.loadbalancer.server.port=3000"
-      - "traefik.docker.network=dittofeed-network-dev"
     depends_on:
       - postgres
       - temporal
@@ -50,16 +45,19 @@ services:
       context: .
       dockerfile: ./packages/api/Dockerfile
     restart: unless-stopped
-    healthcheck:  
-      test: ["CMD", "curl", "-f", "http://localhost:3001/"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3001/api/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     volumes:
       - ./mnt:/dittofeed-mnt
-    ports:
-      - "3001:3001"
+    labels:
+      - caddy_0=https://dittofeed.shortcastle.com
+      - caddy_0.encode=zstd gzip
+      - caddy_0.handle_path=/api*
+      - caddy_0.handle_path.0_reverse_proxy={{upstreams 3001}}
     depends_on:
       - postgres
       - clickhouse-server
@@ -75,12 +73,11 @@ services:
       context: .
       dockerfile: ./packages/worker/Dockerfile
     restart: unless-stopped
-    healthcheck:  
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      timeout: 5s
+      retries: 1
     volumes:
       - ./mnt:/dittofeed-mnt
     depends_on:
@@ -317,8 +314,8 @@ services:
   clickhouse-server:
     container_name: dittofeed-clickhouse
     image: clickhouse/clickhouse-server:24.12.6.70-alpine
-    healthcheck:  
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -u ${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD} http://localhost:8123/ping | grep -q 'Ok'"]
       interval: 30s
       timeout: 10s
       retries: 3
