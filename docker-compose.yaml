@@ -34,10 +34,10 @@ services:
       - caddy_0.handle_path.0_reverse_proxy={{upstreams 3000}}
       - caddy_ingress_network=dittofeed-network-dev
     depends_on:
-      - postgres
-      - temporal
-      - api
-      - clickhouse-server
+      - dittofeed-postgres
+      - dittofeed-temporal
+      - dittofeed-api
+      - dittofeed-clickhouse-server
     environment:
       <<: *backend-app-env
       HOST: ${HOST_ENV}
