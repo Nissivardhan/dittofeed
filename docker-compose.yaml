@@ -162,8 +162,7 @@ services:
       - POSTGRES_USER=${DATABASE_USER}
       - POSTGRES_PWD=${DATABASE_PASSWORD}
       - POSTGRES_SEEDS=postgres
-      - BIND_ON_IP=0.0.0.0
-      - TEMPORAL_BROADCAST_ADDRESS=temporal
+      - BIND_ON_IP=temporal
     image: temporalio/auto-setup:1.18.5
     labels:
       kompose.volume.type: configMap
