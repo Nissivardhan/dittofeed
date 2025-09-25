@@ -114,8 +114,8 @@ services:
     build:
       context: .
       dockerfile: ./packages/admin-cli/Dockerfile
-    entrypoint: null
-    command: tail -f /dev/null
+    entrypoint: ["sh","-lc"]
+    command: ["sleep infinity"]
     tty: true
     depends_on:
       - postgres
