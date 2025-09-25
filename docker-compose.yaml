@@ -45,7 +45,6 @@ services:
     networks:
       - dittofeed-network-dev
   dittofeed-api:
-    container_name: dittofeed-api
     build:
       context: .
       dockerfile: ./packages/api/Dockerfile
@@ -73,7 +72,6 @@ services:
     networks:
       - dittofeed-network-dev
   dittofeed-worker:
-    container_name: dittofeed-worker
     build:
       context: .
       dockerfile: ./packages/worker/Dockerfile
@@ -138,7 +136,6 @@ services:
     networks:
       - dittofeed-network-dev
   dittofeed-temporal:
-    container_name: dittofeed-temporal
     healthcheck:  
       test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/7233'"]
       interval: 30s
@@ -179,7 +176,6 @@ services:
     ports:
       - 8080:8080
   dittofeed-postgres:
-    container_name: dittofeed-postgres
     image: "postgres:15"
     restart: always
     healthcheck:  
@@ -317,7 +313,6 @@ services:
     networks:
       - dittofeed-network-dev
   dittofeed-clickhouse-server:
-    container_name: dittofeed-clickhouse
     image: clickhouse/clickhouse-server:24.12.6.70-alpine
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS -u ${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD} http://localhost:8123/ping | grep -q 'Ok'"]
