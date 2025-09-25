@@ -23,6 +23,13 @@ services:
       - ./mnt:/dittofeed-mnt
     ports:
       - "3000:3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dittofeed-dashboard.entrypoints=https"
+      - "traefik.http.routers.dittofeed-dashboard.rule=Host(`dittofeed.shortcastle.com`) && PathPrefix(`/`)"
+      - "traefik.http.routers.dittofeed-dashboard.tls=true"
+      - "traefik.http.routers.dittofeed-dashboard.priority=10"
+      - "traefik.http.services.dittofeed-dashboard.loadbalancer.server.port=3000"
     depends_on:
       - postgres
       - temporal
@@ -43,6 +50,13 @@ services:
       - ./mnt:/dittofeed-mnt
     ports:
       - "3001:3001"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dittofeed-api.entrypoints=https"
+      - "traefik.http.routers.dittofeed-api.rule=Host(`dittofeed.shortcastle.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.dittofeed-api.tls=true"
+      - "traefik.http.routers.dittofeed-api.priority=100"
+      - "traefik.http.services.dittofeed-api.loadbalancer.server.port=3001"
     depends_on:
       - postgres
       - clickhouse-server
