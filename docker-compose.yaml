@@ -37,6 +37,7 @@ services:
       - "traefik.http.routers.dittofeed-dashboard.tls=true"
       - "traefik.http.routers.dittofeed-dashboard.priority=10"
       - "traefik.http.services.dittofeed-dashboard.loadbalancer.server.port=3000"
+      - "traefik.docker.network=dittofeed-network-dev"
     depends_on:
       - postgres
       - temporal
@@ -71,6 +72,7 @@ services:
       - "traefik.http.routers.dittofeed-api.tls=true"
       - "traefik.http.routers.dittofeed-api.priority=100"
       - "traefik.http.services.dittofeed-api.loadbalancer.server.port=3001"
+      - "traefik.docker.network=dittofeed-network-dev"
     depends_on:
       - postgres
       - clickhouse-server
