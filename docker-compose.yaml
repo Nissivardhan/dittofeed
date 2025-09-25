@@ -30,6 +30,8 @@ services:
       - clickhouse-server
     environment:
       <<: *backend-app-env
+      HOST: ${HOST_ENV}
+      PORT: ${PORT_ENV}
     networks:
       - dittofeed-network-dev
   api:
