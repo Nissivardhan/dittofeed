@@ -328,6 +328,7 @@ services:
     volumes:
       - clickhouse_lib:/var/lib/clickhouse
       - clickhouse_log:/var/log/clickhouse-server
+      - ./clickhouse/config/config.xml:/etc/clickhouse-server/config.xml
     networks:
       - dittofeed-network-dev
   otel-collector:
