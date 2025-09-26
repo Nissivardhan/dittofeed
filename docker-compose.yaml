@@ -314,7 +314,7 @@ services:
   clickhouse-server:
     image: clickhouse/clickhouse-server:24.12.6.70-alpine
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS -u ${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD} http://localhost:8123/ping | grep -q 'Ok'"]
+      test: ["CMD", "clickhouse-client", "--user", "${CLICKHOUSE_USER}", "--password", "${CLICKHOUSE_PASSWORD}", "--query", "SELECT 1"]
       interval: 30s
       timeout: 10s
       retries: 3
