@@ -98,17 +98,8 @@ services:
       - POSTGRES_PWD=${DATABASE_PASSWORD}
       - POSTGRES_SEEDS=${DATABASE_HOST:-postgres}
       - TEMPORAL_CLI_SHOW_STACKS=1
-      - TEMPORAL_BROADCAST_ADDRESS=temporal
-      - RINGPOP_BROADCAST_ADDRESS=temporal
-      - SERVICES_FRONTEND_RINGPOP_BROADCAST_ADDRESS=temporal
-      - SERVICES_HISTORY_RINGPOP_BROADCAST_ADDRESS=temporal
-      - SERVICES_MATCHING_RINGPOP_BROADCAST_ADDRESS=temporal
-      - SERVICES_WORKER_RINGPOP_BROADCAST_ADDRESS=temporal
     networks:
-      dittofeed-network-lite:
-        aliases:
-          - temporal
-    hostname: temporal
+      - dittofeed-network-lite
     healthcheck:
       test: ["CMD-SHELL", "netstat -tlnp | grep -q ':7233' || exit 1"]
       interval: 15s
