@@ -136,7 +136,7 @@ services:
       <<: *backend-app-env
     volumes:
       - ./mnt:/dittofeed-mnt
-    networking:
+    networks:
       - dittofeed-network-ee
 
 volumes:
