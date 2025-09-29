@@ -95,7 +95,6 @@ services:
       - POSTGRES_USER=${DATABASE_USER:-postgres}
       - POSTGRES_PWD=${DATABASE_PASSWORD}
       - POSTGRES_SEEDS=${DATABASE_HOST:-postgres}
-      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/dev.yaml
     networks:
       - dittofeed-network-lite
     healthcheck:
