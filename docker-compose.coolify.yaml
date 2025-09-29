@@ -19,10 +19,10 @@ x-backend-app-env: &backend-app-env
   SIGNOUT_URL: ${SIGNOUT_URL}
 
 services:
-  # Main Dittofeed EE Application
-  ee:
-    image: dittofeed/dittofeed-ee:${IMAGE_TAG:-v0.22.0-ee.6}
-    command: node --max-old-space-size=${MEM_LIMIT:-1024} ./packages/ee/dist/scripts/startLite.js
+  # Main Dittofeed Lite Application (with multi-tenant auth)
+  lite:
+    image: dittofeed/dittofeed-lite:${IMAGE_TAG:-v0.22.0}
+    command: node --max-old-space-size=${MEM_LIMIT:-1024} ./packages/lite/dist/scripts/startLite.js
     restart: always
     ports:
       - "3000:3000"
@@ -32,13 +32,16 @@ services:
       HOST: "0.0.0.0"
       BOOTSTRAP: ${BOOTSTRAP:-true}
     depends_on:
-      - postgres
-      - temporal
-      - clickhouse-server
+      postgres:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+      clickhouse-server:
+        condition: service_healthy
     volumes:
       - ./mnt:/dittofeed-mnt
     networks:
-      - dittofeed-network-ee
+      - dittofeed-network-lite
     deploy:
       resources:
         limits:
@@ -53,9 +56,9 @@ services:
       POSTGRES_DB: dittofeed
       POSTGRES_USER: ${DATABASE_USER:-postgres}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - dittofeed_postgres_data:/var/lib/postgresql/data
     networks:
-      - dittofeed-network-ee
+      - dittofeed-network-lite
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-postgres} -d dittofeed"]
       interval: 10s
@@ -70,10 +73,10 @@ services:
       <<: *clickhouse-credentials
     volumes:
       - ./packages/backend-lib/clickhouse_config.dev.xml:/etc/clickhouse-server/config.xml
-      - clickhouse_data:/var/lib/clickhouse
-      - clickhouse_logs:/var/log/clickhouse-server
+      - dittofeed_clickhouse_data:/var/lib/clickhouse
+      - dittofeed_clickhouse_logs:/var/log/clickhouse-server
     networks:
-      - dittofeed-network-ee
+      - dittofeed-network-lite
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
       interval: 10s
@@ -101,7 +104,7 @@ services:
     volumes:
       - ./packages/backend-lib/temporal-dynamicconfig:/etc/temporal/config/dynamicconfig
     networks:
-      - dittofeed-network-ee
+      - dittofeed-network-lite
     healthcheck:
       test: ["CMD", "temporal", "cluster", "health"]
       interval: 10s
@@ -119,13 +122,13 @@ services:
       temporal:
         condition: service_healthy
     networks:
-      - dittofeed-network-ee
+      - dittofeed-network-lite
     ports:
       - "8080:8080"
 
   # Admin CLI for maintenance operations
   admin-cli:
-    image: dittofeed/dittofeed-admin-cli-licensed:${IMAGE_TAG:-v0.22.0-ee.6}
+    image: dittofeed/dittofeed-admin-cli:${IMAGE_TAG:-v0.22.0}
     profiles: ["admin-cli"]
     command: tail -f /dev/null
     depends_on:
@@ -137,14 +140,15 @@ services:
     volumes:
       - ./mnt:/dittofeed-mnt
     networks:
-      - dittofeed-network-ee
+      - dittofeed-network-lite
 
 volumes:
-  postgres_data:
-  clickhouse_data:
-  clickhouse_logs:
+  # Shared volumes for easy EE migration
+  dittofeed_postgres_data:
+  dittofeed_clickhouse_data:
+  dittofeed_clickhouse_logs:
 
 networks:
-  dittofeed-network-ee:
+  dittofeed-network-lite:
     driver: bridge
-    name: dittofeed-network-ee
+    name: dittofeed-network-lite
