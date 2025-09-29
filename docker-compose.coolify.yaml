@@ -103,11 +103,12 @@ services:
       - SERVICES_HISTORY_BINDONIP=0.0.0.0
       - SERVICES_MATCHING_BINDONIP=0.0.0.0
       - SERVICES_WORKER_BINDONIP=0.0.0.0
-      - TEMPORAL_BROADCAST_ADDRESS=temporal
     networks:
       - dittofeed-network-lite
+    extra_hosts:
+      - "temporal:127.0.0.1"
     healthcheck:
-      test: ["CMD-SHELL", "netstat -tlnp | grep -q ':7233' || exit 1"] 
+      test: ["CMD-SHELL", "netstat -tlnp | grep -q ':7233' || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 5
