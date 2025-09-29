@@ -32,12 +32,9 @@ services:
       HOST: "0.0.0.0"
       BOOTSTRAP: ${BOOTSTRAP:-true}
     depends_on:
-      postgres:
-        condition: service_healthy
-      temporal:
-        condition: service_healthy
-      clickhouse-server:
-        condition: service_healthy
+      - postgres
+      - temporal
+      - clickhouse-server
     volumes:
       - ./mnt:/dittofeed-mnt
     networks:
@@ -91,8 +88,7 @@ services:
     image: temporalio/auto-setup:${TEMPORAL_VERSION:-1.22.4}
     restart: always
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
     environment:
       - DB=postgresql
       - DB_PORT=${DATABASE_PORT:-5432}
@@ -105,10 +101,11 @@ services:
     networks:
       - dittofeed-network-lite
     healthcheck:
-      test: ["CMD", "temporal", "cluster", "health"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD", "curl", "-f", "http://localhost:7233/api/v1/system/health"] 
+      interval: 15s
+      timeout: 10s
       retries: 5
+      start_period: 30s
 
   # Temporal UI (optional - for monitoring workflows)
   temporal-ui:
@@ -118,8 +115,7 @@ services:
       - TEMPORAL_ADDRESS=temporal:7233
       - TEMPORAL_CORS_ORIGINS=https://dittofeed.shortcastle.com
     depends_on:
-      temporal:
-        condition: service_healthy
+      - temporal
     networks:
       - dittofeed-network-lite
     ports:
