@@ -72,7 +72,6 @@ services:
     environment:
       <<: *clickhouse-credentials
     volumes:
-      - ./packages/backend-lib/clickhouse_config.dev.xml:/etc/clickhouse-server/config.xml
       - dittofeed_clickhouse_data:/var/lib/clickhouse
       - dittofeed_clickhouse_logs:/var/log/clickhouse-server
     networks:
