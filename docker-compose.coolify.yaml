@@ -36,6 +36,8 @@ services:
       - ./mnt:/dittofeed-mnt
     networks:
       - dittofeed-network-lite
+    labels:
+      - "traefik.http.services.dittofeed-lite.loadbalancer.server.port=3000"
     deploy:
       resources:
         limits:
