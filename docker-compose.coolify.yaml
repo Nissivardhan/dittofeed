@@ -39,6 +39,7 @@ services:
     labels:
       - "traefik.http.services.dittofeed-lite.loadbalancer.server.port=3000"
       - "traefik.http.routers.https-0-hs44k8wsko0c4ggwsgsg0ws0-lite.service=dittofeed-lite"
+      - "traefik.http.routers.https-0-hs44k8wsko0c4ggwsgsg0ws0-lite.rule=Host(`dittofeed.shortcastle.com`)"
       - "traefik.docker.network=hs44k8wsko0c4ggwsgsg0ws0"
     deploy:
       resources:
