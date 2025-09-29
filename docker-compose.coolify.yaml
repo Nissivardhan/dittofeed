@@ -127,8 +127,7 @@ services:
   # Admin CLI for maintenance operations
   admin-cli:
     image: dittofeed/dittofeed-admin-cli:${IMAGE_TAG:-v0.22.0}
-    entrypoint: []
-    command: ["tail", "-f", "/dev/null"]
+    entrypoint: ["tail", "-f", "/dev/null"]
     depends_on:
       - postgres
       - temporal
