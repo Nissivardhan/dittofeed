@@ -1,0 +1,150 @@
+version: "3.9"
+x-clickhouse-credentials: &clickhouse-credentials
+  CLICKHOUSE_USER: ${CLICKHOUSE_USER:-dittofeed}
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+x-backend-app-env: &backend-app-env
+  <<: *clickhouse-credentials
+  NODE_ENV: production
+  DATABASE_HOST: ${DATABASE_HOST:-postgres}
+  DATABASE_PORT: ${DATABASE_PORT:-5432}
+  DATABASE_USER: ${DATABASE_USER:-postgres}
+  DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+  CLICKHOUSE_HOST: ${CLICKHOUSE_HOST:-http://clickhouse-server:8123}
+  TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
+  WORKSPACE_NAME: ${WORKSPACE_NAME:-Default}
+  AUTH_MODE: ${AUTH_MODE:-multi-tenant}
+  SECRET_KEY: ${SECRET_KEY}
+  DASHBOARD_API_BASE: ${SERVICE_URL_DASHBOARD}
+  ONBOARDING_URL: ${ONBOARDING_URL}
+  SIGNOUT_URL: ${SIGNOUT_URL}
+
+services:
+  # Main Dittofeed EE Application
+  ee:
+    image: dittofeed/dittofeed-ee:${IMAGE_TAG:-v0.22.0-ee.6}
+    command: node --max-old-space-size=${MEM_LIMIT:-1024} ./packages/ee/dist/scripts/startLite.js
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      <<: *backend-app-env
+      PORT: "3000"
+      HOST: "0.0.0.0"
+      BOOTSTRAP: ${BOOTSTRAP:-true}
+    depends_on:
+      - postgres
+      - temporal
+      - clickhouse-server
+    volumes:
+      - ./mnt:/dittofeed-mnt
+    networks:
+      - dittofeed-network-ee
+    deploy:
+      resources:
+        limits:
+          memory: ${CONTAINER_MEM_LIMIT:-1200}m
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:${POSTGRES_VERSION:-15}
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: dittofeed
+      POSTGRES_USER: ${DATABASE_USER:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - dittofeed-network-ee
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-postgres} -d dittofeed"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ClickHouse for analytics
+  clickhouse-server:
+    image: clickhouse/clickhouse-server:24.12.6.70-alpine
+    restart: always
+    environment:
+      <<: *clickhouse-credentials
+    volumes:
+      - ./packages/backend-lib/clickhouse_config.dev.xml:/etc/clickhouse-server/config.xml
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+    networks:
+      - dittofeed-network-ee
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: ${CLICKHOUSE_CONTAINER_MEM_LIMIT:-2048}m
+
+  # Temporal for workflow management
+  temporal:
+    image: temporalio/auto-setup:${TEMPORAL_VERSION:-1.22.4}
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DB=postgresql
+      - DB_PORT=${DATABASE_PORT:-5432}
+      - POSTGRES_USER=${DATABASE_USER:-postgres}
+      - POSTGRES_PWD=${DATABASE_PASSWORD}
+      - POSTGRES_SEEDS=${DATABASE_HOST:-postgres}
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/prod.yaml
+    volumes:
+      - ./packages/backend-lib/temporal-dynamicconfig:/etc/temporal/config/dynamicconfig
+    networks:
+      - dittofeed-network-ee
+    healthcheck:
+      test: ["CMD", "temporal", "cluster", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Temporal UI (optional - for monitoring workflows)
+  temporal-ui:
+    image: temporalio/ui:${TEMPORAL_UI_VERSION:-2.22.1}
+    restart: always
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=https://dittofeed.shortcastle.com
+    depends_on:
+      temporal:
+        condition: service_healthy
+    networks:
+      - dittofeed-network-ee
+    ports:
+      - "8080:8080"
+
+  # Admin CLI for maintenance operations
+  admin-cli:
+    image: dittofeed/dittofeed-admin-cli-licensed:${IMAGE_TAG:-v0.22.0-ee.6}
+    profiles: ["admin-cli"]
+    command: tail -f /dev/null
+    depends_on:
+      - postgres
+      - temporal
+      - clickhouse-server
+    environment:
+      <<: *backend-app-env
+    volumes:
+      - ./mnt:/dittofeed-mnt
+    networking:
+      - dittofeed-network-ee
+
+volumes:
+  postgres_data:
+  clickhouse_data:
+  clickhouse_logs:
+
+networks:
+  dittofeed-network-ee:
+    driver: bridge
+    name: dittofeed-network-ee
