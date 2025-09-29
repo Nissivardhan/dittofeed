@@ -108,6 +108,7 @@ services:
       dittofeed-network-lite:
         aliases:
           - temporal
+    hostname: temporal
     healthcheck:
       test: ["CMD-SHELL", "netstat -tlnp | grep -q ':7233' || exit 1"]
       interval: 15s
