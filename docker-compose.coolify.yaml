@@ -12,16 +12,13 @@ x-backend-app-env: &backend-app-env
   CLICKHOUSE_HOST: ${CLICKHOUSE_HOST:-http://clickhouse-server:8123}
   TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
   WORKSPACE_NAME: ${WORKSPACE_NAME:-Default}
-  AUTH_MODE: ${AUTH_MODE:-multi-tenant}
+  AUTH_MODE: ${AUTH_MODE:-single-tenant}
   SECRET_KEY: ${SECRET_KEY}
   DASHBOARD_API_BASE: ${SERVICE_URL_DASHBOARD}
   ONBOARDING_URL: ${ONBOARDING_URL}
-  SIGNOUT_URL: ${SIGNOUT_URL}
-  SIGNOUT_REDIRECT_URL: ${SIGNOUT_URL}
-  OAUTH_START_URL: ${OPEN_ID_AUTHORIZATION_URL}
 
 services:
-  # Main Dittofeed Lite Application (with multi-tenant auth)
+  # Main Dittofeed Lite Application (with single-tenant auth)
   lite:
     image: dittofeed/dittofeed-lite:${IMAGE_TAG:-v0.22.0}
     command: node --max-old-space-size=${MEM_LIMIT:-1024} ./packages/lite/dist/scripts/startLite.js --workspace-name=${WORKSPACE_NAME:-Default}
