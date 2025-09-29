@@ -103,6 +103,7 @@ services:
       - SERVICES_HISTORY_BINDONIP=0.0.0.0
       - SERVICES_MATCHING_BINDONIP=0.0.0.0
       - SERVICES_WORKER_BINDONIP=0.0.0.0
+      - TEMPORAL_BROADCAST_ADDRESS=temporal
     networks:
       - dittofeed-network-lite
     healthcheck:
