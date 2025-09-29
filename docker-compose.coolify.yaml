@@ -23,8 +23,6 @@ services:
     image: dittofeed/dittofeed-lite:${IMAGE_TAG:-v0.22.0}
     command: node --max-old-space-size=${MEM_LIMIT:-1024} ./packages/lite/dist/scripts/startLite.js --workspace-name=${WORKSPACE_NAME:-Default}
     restart: always
-    ports:
-      - "3000:3000"
     environment:
       <<: *backend-app-env
       PORT: "3000"
