@@ -17,6 +17,8 @@ x-backend-app-env: &backend-app-env
   DASHBOARD_API_BASE: ${SERVICE_URL_DASHBOARD}
   ONBOARDING_URL: ${ONBOARDING_URL}
   SIGNOUT_URL: ${SIGNOUT_URL}
+  SIGNOUT_REDIRECT_URL: ${SIGNOUT_URL}
+  OAUTH_START_URL: ${OPEN_ID_AUTHORIZATION_URL}
 
 services:
   # Main Dittofeed Lite Application (with multi-tenant auth)
@@ -95,6 +97,7 @@ services:
       - POSTGRES_USER=${DATABASE_USER:-postgres}
       - POSTGRES_PWD=${DATABASE_PASSWORD}
       - POSTGRES_SEEDS=${DATABASE_HOST:-postgres}
+      - BIND_ON_IP=0.0.0.0
     networks:
       - dittofeed-network-lite
     healthcheck:
