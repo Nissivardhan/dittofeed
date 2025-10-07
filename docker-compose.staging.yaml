@@ -93,7 +93,7 @@ services:
       - "traefik.http.services.staging-api.loadbalancer.server.port=3001"
       - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-staging-api.service=staging-api"
       - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-staging-api.rule=PathPrefix(`/api`)"
-      - "traefik.docker.network=ls8k8wc4oosww04ggsgs8400"
+      - traefik.docker.network=dittofeed-network-staging 
   staging-worker:
     build:
       context: .
@@ -399,5 +399,6 @@ volumes:
 
 networks:
   dittofeed-network-staging:
+    external: true
     driver: bridge
     name: dittofeed-network-staging
