@@ -55,13 +55,10 @@ services:
       - dittofeed-network-staging
       - ls8k8wc4oosww04ggsgs8400
     labels:
-      - "caddy_0": "https://dittofeed.shortcastle.com"
-      - "caddy_0.encode": "zstd gzip"
-      - "caddy_0.handle_path": "/*"
-      - "caddy_0.handle_path.0_reverse_proxy": "{{upstreams}}"
-      - "caddy_0.header": "-Server"
-      - "caddy_0.try_files": "{path} /index.html /index.php"
-      - "caddy_ingress_network": "ls8k8wc4oosww04ggsgs8400"
+      - "traefik.http.services.staging-dashboard.loadbalancer.server.port=3000"
+      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-staging-dashboard.service=staging-dashboard"
+      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-staging-dashboard.rule=PathPrefix(`/dashboard`) || PathPrefix(`/`)"
+      - "traefik.docker.network=ls8k8wc4oosww04ggsgs8400"
   staging-api:
     build:
       context: .
@@ -93,12 +90,10 @@ services:
       - dittofeed-network-staging
       - ls8k8wc4oosww04ggsgs8400
     labels:
-      - "caddy_0": "https://dittofeed.shortcastle.com/api"
-      - "caddy_0.encode": "zstd gzip"
-      - "caddy_0.handle_path": "/api/*"
-      - "caddy_0.handle_path.0_reverse_proxy": "{{upstreams}}"
-      - "caddy_0.header": "-Server"
-      - "caddy_ingress_network": "ls8k8wc4oosww04ggsgs8400"
+      - "traefik.http.services.staging-api.loadbalancer.server.port=3001"
+      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-staging-api.service=staging-api"
+      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-staging-api.rule=PathPrefix(`/api`)"
+      - "traefik.docker.network=ls8k8wc4oosww04ggsgs8400"
   staging-worker:
     build:
       context: .
