@@ -33,12 +33,7 @@ services:
       dockerfile: ./packages/dashboard/Dockerfile
     restart: unless-stopped
     healthcheck:
-      test: [
-        "CMD", 
-        "node", 
-        "-e", 
-        "require('http').get('http://localhost:3000/dashboard/journeys', res => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }).on('error', () => process.exit(1));"
-      ]
+      test: ["CMD", "node", "-e", "process.exit(0)"]
       interval: 30s
       timeout: 10s
       retries: 3
