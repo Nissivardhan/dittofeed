@@ -57,7 +57,7 @@ services:
     labels:
       - "traefik.http.services.staging-dashboard.loadbalancer.server.port=3000"
       - "traefik.http.routers.staging-dashboard.service=staging-dashboard"
-      - "traefik.http.routers.staging-dashboard.rule=Host(`dittofeed.shortcastle.com`)"
+      - "traefik.http.routers.staging-dashboard.rule=Host(`dittofeed.shortcastle.com`) && !PathPrefix(`/api`)"
       - "traefik.http.routers.staging-dashboard.tls=true"
       - "traefik.docker.network=dittofeed-network-staging"
   staging-api:
