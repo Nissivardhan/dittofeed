@@ -71,7 +71,7 @@ services:
       - dittofeed-network-staging
     labels:
       - "traefik.http.services.staging-dashboard.loadbalancer.server.port=3000"
-      - "traefik.http.routers.staging-dashboard.rule=PathPrefix(`/dashboard`)"
+      - "traefik.http.routers.staging-dashboard.rule=PathPrefix(`/dashboard`) || PathPrefix(`/`)"
       - "traefik.docker.network=dittofeed-network-staging"
   staging-api:
     build:
@@ -143,7 +143,7 @@ services:
       - dittofeed-network-staging
     labels:
       - "traefik.http.services.staging-lite.loadbalancer.server.port=3000"
-      - "traefik.http.routers.staging-lite.rule=PathPrefix(`/dashboard`) || PathPrefix(`/api`)"
+      - "traefik.http.routers.staging-lite.rule=PathPrefix(`/dashboard`) || PathPrefix(`/api`) || PathPrefix(`/`)"
       - "traefik.docker.network=dittofeed-network-staging"
   staging-admin-cli:
     build:
