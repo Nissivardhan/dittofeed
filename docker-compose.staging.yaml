@@ -93,6 +93,7 @@ services:
       - "traefik.http.services.staging-api.loadbalancer.server.port=3001"
       - "traefik.http.routers.staging-api.service=staging-api"
       - "traefik.http.routers.staging-api.rule=Host(`dittofeed.shortcastle.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.staging-api.priority=20"
       - "traefik.http.routers.staging-api.tls=true"
       - "traefik.docker.network=dittofeed-network-staging"
   staging-worker:
