@@ -53,13 +53,14 @@ services:
       <<: *backend-app-env
     networks:
       - dittofeed-network-staging
+      - ls8k8wc4oosww04ggsgs8400
     labels:
       - "traefik.http.services.staging-dashboard.loadbalancer.server.port=3000"
       - "traefik.http.routers.staging-dashboard.service=staging-dashboard"
       - "traefik.http.routers.staging-dashboard.rule=Host(`dittofeed.shortcastle.com`) && !PathPrefix(`/api`)"
       - "traefik.http.routers.staging-dashboard.priority=1"
       - "traefik.http.routers.staging-dashboard.tls=true"
-      - "traefik.docker.network=dittofeed-network-staging"
+      - "traefik.docker.network=ls8k8wc4oosww04ggsgs8400"
   staging-api:
     build:
       context: .
@@ -89,13 +90,14 @@ services:
       BOOTSTRAP_EVENTS: ${BOOTSTRAP_EVENTS}
     networks:
       - dittofeed-network-staging
+      - ls8k8wc4oosww04ggsgs8400
     labels:
       - "traefik.http.services.staging-api.loadbalancer.server.port=3001"
       - "traefik.http.routers.staging-api.service=staging-api"
       - "traefik.http.routers.staging-api.rule=Host(`dittofeed.shortcastle.com`) && PathPrefix(`/api`)"
       - "traefik.http.routers.staging-api.priority=100"
       - "traefik.http.routers.staging-api.tls=true"
-      - "traefik.docker.network=dittofeed-network-staging"
+      - "traefik.docker.network=ls8k8wc4oosww04ggsgs8400"
   staging-worker:
     build:
       context: .
