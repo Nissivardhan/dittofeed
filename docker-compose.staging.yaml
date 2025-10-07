@@ -39,7 +39,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    command: ["npm", "run", "start", "--", "-H", "0.0.0.0", "-p", "3000"]
+    command: ["npm", "run", "start"]
     ports:
       - "3000:3000"
     volumes:
