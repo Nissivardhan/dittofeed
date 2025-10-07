@@ -1,16 +1,3 @@
-# Dittofeed Staging Docker Compose Configuration
-# 
-# ⚠️  SECURITY WARNING: This file contains environment variable references
-# All sensitive values must be provided via environment variables
-# Never commit actual secrets to version control
-#
-# Required Environment Variables:
-# - DATABASE_PASSWORD, CLICKHOUSE_PASSWORD, KAFKA_PASSWORD, SECRET_KEY, PASSWORD
-# - KAFKA_ADMIN_USER, KAFKA_ADMIN_PASSWORD (for Kafka setup)
-# - SERVICE_URL_STAGING (Coolify will provide this)
-#
-# See .env.example for a complete list of required variables
-
 version: "3.9"
 
 x-clickhouse-credentials: &clickhouse-credentials
@@ -36,8 +23,9 @@ x-backend-app-env: &backend-app-env
   AUTH_MODE: ${AUTH_MODE}
   SECRET_KEY: ${SECRET_KEY}
   PASSWORD: ${PASSWORD}
-  DASHBOARD_API_BASE: ${SERVICE_URL_STAGING}
+  DASHBOARD_API_BASE: ${SERVICE_URL_STAGING_DASHBOARD}
   ONBOARDING_URL: ${ONBOARDING_URL}
+  SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE}
 services:
   staging-dashboard:
     build:
@@ -137,8 +125,8 @@ services:
       - staging-clickhouse-server
     environment:
       <<: *backend-app-env
-      DASHBOARD_URL: ${SERVICE_URL_STAGING}
-      DASHBOARD_API_BASE: ${SERVICE_URL_STAGING}
+      DASHBOARD_URL: ${SERVICE_URL_STAGING_DASHBOARD}
+      DASHBOARD_API_BASE: ${SERVICE_URL_STAGING_DASHBOARD}
     networks:
       - dittofeed-network-staging
     labels:
@@ -200,7 +188,7 @@ services:
       - staging-temporal
     environment:
       - TEMPORAL_ADDRESS=staging-temporal:7233
-      - TEMPORAL_CORS_ORIGINS=${SERVICE_URL_STAGING}
+      - TEMPORAL_CORS_ORIGINS=${SERVICE_URL_STAGING_DASHBOARD}
     image: temporalio/ui:${TEMPORAL_UI_VERSION:-2.22.1}
     networks:
       - dittofeed-network-staging
