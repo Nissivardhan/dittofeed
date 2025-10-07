@@ -1,21 +1,43 @@
+# Dittofeed Staging Docker Compose Configuration
+# 
+# ⚠️  SECURITY WARNING: This file contains environment variable references
+# All sensitive values must be provided via environment variables
+# Never commit actual secrets to version control
+#
+# Required Environment Variables:
+# - DATABASE_PASSWORD, CLICKHOUSE_PASSWORD, KAFKA_PASSWORD, SECRET_KEY, PASSWORD
+# - KAFKA_ADMIN_USER, KAFKA_ADMIN_PASSWORD (for Kafka setup)
+# - SERVICE_URL_STAGING (Coolify will provide this)
+#
+# See .env.example for a complete list of required variables
+
 version: "3.9"
+
 x-clickhouse-credentials: &clickhouse-credentials
   CLICKHOUSE_USER: ${CLICKHOUSE_USER}
   CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+
 x-backend-app-env: &backend-app-env
   <<: *clickhouse-credentials
   NODE_ENV: ${NODE_ENV}
-  KAFKA_BROKERS: "staging-kafka:29092"
+  DATABASE_HOST: ${DATABASE_HOST}
+  DATABASE_PORT: ${DATABASE_PORT}
+  DATABASE_USER: ${DATABASE_USER}
+  DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+  CLICKHOUSE_HOST: ${CLICKHOUSE_HOST}
+  TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS}
+  WORKSPACE_NAME: ${WORKSPACE_NAME}
+  KAFKA_BROKERS: ${KAFKA_BROKERS}
   KAFKA_USERNAME: ${KAFKA_USERNAME}
   KAFKA_PASSWORD: ${KAFKA_PASSWORD}
-  KAFKA_ENABLE_ADMIN_SASL: "false"
-  CLICKHOUSE_HOST: "http://staging-clickhouse-server:8123"
-  TEMPORAL_ADDRESS: "staging-temporal:7233"
-  API_HOST: "0.0.0.0"
-  LOG_CONFIG: true
+  KAFKA_ENABLE_ADMIN_SASL: ${KAFKA_ENABLE_ADMIN_SASL}
+  API_HOST: ${API_HOST}
+  LOG_CONFIG: ${LOG_CONFIG}
   AUTH_MODE: ${AUTH_MODE}
   SECRET_KEY: ${SECRET_KEY}
   PASSWORD: ${PASSWORD}
+  DASHBOARD_API_BASE: ${SERVICE_URL_STAGING}
+  ONBOARDING_URL: ${ONBOARDING_URL}
 services:
   staging-dashboard:
     build:
@@ -240,7 +262,7 @@ services:
             - address: 0.0.0.0
               port: 9644
           superusers:
-            - admin
+            - ${KAFKA_ADMIN_USER}
         
         pandaproxy:
           pandaproxy_api:
@@ -306,10 +328,10 @@ services:
         timeout 60 bash -c 'until rpk cluster info --brokers staging-kafka:29092; do sleep 1; done'
         
         # Create admin user
-        rpk acl user create admin --password password --mechanism SCRAM-SHA-256 --brokers staging-kafka:29092 --api-urls http://staging-kafka:9644
+        rpk acl user create ${KAFKA_ADMIN_USER} --password ${KAFKA_ADMIN_PASSWORD} --mechanism SCRAM-SHA-256 --brokers staging-kafka:29092 --api-urls http://staging-kafka:9644
         
         # Set superusers (this enables authorization)
-        rpk cluster config set superusers '["admin"]' --brokers staging-kafka:29092 --api-urls http://staging-kafka:9644
+        rpk cluster config set superusers '["${KAFKA_ADMIN_USER}"]' --brokers staging-kafka:29092 --api-urls http://staging-kafka:9644
     networks:
       - dittofeed-network-staging
   staging-clickhouse-server:
