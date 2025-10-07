@@ -84,7 +84,7 @@ services:
       - staging-temporal
     environment:
       <<: *backend-app-env
-      BOOTSTRAP_EVENTS: true
+      BOOTSTRAP_EVENTS: ${BOOTSTRAP_EVENTS}
     networks:
       - dittofeed-network-staging
     labels:
