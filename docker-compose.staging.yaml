@@ -76,8 +76,6 @@ services:
       start_period: 40s
     volumes:
       - ./mnt:/dittofeed-mnt
-    ports:
-      - "3001:3001"
     depends_on:
       - staging-postgres
       - staging-clickhouse-server
@@ -88,10 +86,13 @@ services:
     networks:
       - dittofeed-network-staging
     labels:
-      - "traefik.http.services.staging-api.loadbalancer.server.port=3001"
-      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-api.service=staging-api"
-      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-api.rule=PathPrefix(`/api`)"
-      - "traefik.docker.network=ls8k8wc4oosww04ggsgs8400"  
+      - "traefik.enable=true"
+      - "traefik.docker.network=ls8k8wc4oosww04ggsgs8400"
+      - "traefik.http.routers.dittofeed-api.rule=Host(`dittofeed.shortcastle.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.dittofeed-api.entrypoints=https"
+      - "traefik.http.routers.dittofeed-api.tls=true"
+      - "traefik.http.routers.dittofeed-api.priority=60"
+      - "traefik.http.services.dittofeed-api.loadbalancer.server.port=3001"
   staging-worker:
     build:
       context: .
