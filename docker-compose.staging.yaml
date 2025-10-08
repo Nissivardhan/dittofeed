@@ -51,7 +51,6 @@ services:
       - staging-clickhouse-server
     environment:
       <<: *backend-app-env
-      SESSION_COOKIE_SECURE: true
       TRUST_PROXY: true
     networks:
       - dittofeed-network-staging
@@ -86,7 +85,6 @@ services:
     environment:
       <<: *backend-app-env
       BOOTSTRAP_EVENTS: ${BOOTSTRAP_EVENTS}
-      SESSION_COOKIE_SECURE: true
       TRUST_PROXY: true
     networks:
       - dittofeed-network-staging
