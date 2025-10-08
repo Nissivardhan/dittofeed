@@ -1,0 +1,390 @@
+version: "3.9"
+
+x-clickhouse-credentials: &clickhouse-credentials
+  CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+
+x-backend-app-env: &backend-app-env
+  <<: *clickhouse-credentials
+  NODE_ENV: ${NODE_ENV}
+  DATABASE_HOST: ${DATABASE_HOST}
+  DATABASE_PORT: ${DATABASE_PORT}
+  DATABASE_USER: ${DATABASE_USER}
+  DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+  CLICKHOUSE_HOST: ${CLICKHOUSE_HOST}
+  TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS}
+  WORKSPACE_NAME: ${WORKSPACE_NAME}
+  KAFKA_BROKERS: ${KAFKA_BROKERS}
+  KAFKA_USERNAME: ${KAFKA_USERNAME}
+  KAFKA_PASSWORD: ${KAFKA_PASSWORD}
+  KAFKA_ENABLE_ADMIN_SASL: ${KAFKA_ENABLE_ADMIN_SASL}
+  API_HOST: ${API_HOST}
+  LOG_CONFIG: ${LOG_CONFIG}
+  AUTH_MODE: ${AUTH_MODE}
+  SECRET_KEY: ${SECRET_KEY}
+  PASSWORD: ${PASSWORD}
+  DASHBOARD_API_BASE: ${SERVICE_URL_STAGING_DASHBOARD}
+  ONBOARDING_URL: ${ONBOARDING_URL}
+  SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE}
+  PUBLIC_DITTOFEED_APP_URL: ${PUBLIC_DITTOFEED_APP_URL}
+services:
+  staging-dashboard:
+    build:
+      context: .
+      dockerfile: ./packages/dashboard/Dockerfile
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: ["npm", "run", "start", "--", "-H", "0.0.0.0", "-p", "3000"]
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./mnt:/dittofeed-mnt
+    depends_on:
+      - staging-postgres
+      - staging-temporal
+      - staging-api
+      - staging-clickhouse-server
+    environment:
+      <<: *backend-app-env
+      TRUST_PROXY: true
+    networks:
+      - dittofeed-network-staging
+      - ls8k8wc4oosww04ggsgs8400
+    labels:
+      - "traefik.http.services.staging-dashboard.loadbalancer.server.port=3000"
+      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-dashboard.service=staging-dashboard"
+      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-dashboard.rule=PathPrefix(`/dashboard`) || PathPrefix(`/`)"
+      - "traefik.docker.network=dittofeed-network-staging"
+  staging-api:
+    build:
+      context: .
+      dockerfile: ./packages/api/Dockerfile
+    restart: unless-stopped
+    healthcheck:
+      test: [
+        "CMD", 
+        "node", 
+        "-e", 
+        "require('http').get('http://localhost:3001/api/', res => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }).on('error', () => process.exit(1));"
+      ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - ./mnt:/dittofeed-mnt
+    depends_on:
+      - staging-postgres
+      - staging-clickhouse-server
+      - staging-temporal
+    environment:
+      <<: *backend-app-env
+      BOOTSTRAP_EVENTS: ${BOOTSTRAP_EVENTS}
+      TRUST_PROXY: true
+    networks:
+      - dittofeed-network-staging
+      - ls8k8wc4oosww04ggsgs8400
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=ls8k8wc4oosww04ggsgs8400"
+      - "traefik.http.routers.dittofeed-api.rule=Host(`dittofeed.shortcastle.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.dittofeed-api.entrypoints=https"
+      - "traefik.http.routers.dittofeed-api.tls=true"
+      - "traefik.http.routers.dittofeed-api.priority=60"
+      - "traefik.http.services.dittofeed-api.loadbalancer.server.port=3001"
+  staging-worker:
+    build:
+      context: .
+      dockerfile: ./packages/worker/Dockerfile
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 5s
+      retries: 1
+    volumes:
+      - ./mnt:/dittofeed-mnt
+    depends_on:
+      - staging-postgres
+      - staging-temporal
+      - staging-clickhouse-server
+    environment:
+      <<: *backend-app-env
+    networks:
+      - dittofeed-network-staging
+  staging-admin-cli:
+    build:
+      context: .
+      dockerfile: ./packages/admin-cli/Dockerfile
+    entrypoint: ["sh","-lc"]
+    command: ["sleep infinity"]
+    tty: true
+    depends_on:
+      - staging-postgres
+      - staging-temporal
+      - staging-clickhouse-server
+    environment:
+      <<: *backend-app-env
+    volumes:
+      - ./packages/admin-cli/src:/service/packages/admin-cli/src
+      - ./packages/api/src:/service/packages/api/src
+      - ./packages/backend-lib/src:/service/packages/backend-lib/src
+      - ./packages/dashboard/src:/service/packages/dashboard/src
+      - ./packages/emailo/src:/service/packages/emailo/src
+      - ./packages/isomorphic-lib/src:/service/packages/isomorphic-lib/src
+      - ./packages/lite/src:/service/packages/lite/src
+      - ./packages/worker/src:/service/packages/worker/src
+    networks:
+      - dittofeed-network-staging
+  staging-temporal:
+    container_name: staging-temporal
+    healthcheck:  
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/7233'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - staging-postgres
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=${DATABASE_USER}
+      - POSTGRES_PWD=${DATABASE_PASSWORD}
+      - POSTGRES_SEEDS=staging-postgres
+      - BIND_ON_IP=0.0.0.0
+      - TEMPORAL_BROADCAST_ADDRESS=127.0.0.1
+    image: temporalio/auto-setup:1.18.5
+    networks:
+      - dittofeed-network-staging
+  staging-temporal-ui:
+    profiles: ["temporal-ui"]
+    container_name: staging-dittofeed-temporal-ui
+    restart: always
+    logging:
+      driver: "local"
+    depends_on:
+      - staging-temporal
+    environment:
+      - TEMPORAL_ADDRESS=staging-temporal:7233
+      - TEMPORAL_CORS_ORIGINS=${SERVICE_URL_STAGING_DASHBOARD}
+    image: temporalio/ui:${TEMPORAL_UI_VERSION:-2.22.1}
+    networks:
+      - dittofeed-network-staging
+  staging-postgres:
+    image: "postgres:15"
+    restart: always
+    healthcheck:  
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    environment:
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USER}
+    volumes:
+      - staging-postgres:/var/lib/postgresql/data
+    networks:
+      - dittofeed-network-staging
+  staging-kafka:
+    image: redpandadata/redpanda:v23.1.1
+    profiles: ["kafka"]
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -ex
+        /usr/local/bin/supervisord -d
+        
+        # Create Redpanda configuration with SASL
+        cat > /etc/redpanda/redpanda.yaml <<EOF
+        redpanda:
+          data_directory: /var/lib/redpanda/data
+          node_id: 0
+          seed_servers: []
+          rpc_server:
+            address: 0.0.0.0
+            port: 33145
+          advertised_rpc_api:
+            address: staging-kafka
+            port: 33145
+          kafka_api:
+            - address: 0.0.0.0
+              port: 29092
+              name: internal
+            - address: 0.0.0.0
+              port: 9092
+              name: external
+              authentication_method: sasl
+          advertised_kafka_api:
+            - address: staging-kafka
+              port: 29092
+              name: internal
+            - address: localhost
+              port: 9092
+              name: external
+          admin:
+            - address: 0.0.0.0
+              port: 9644
+          superusers:
+            - ${KAFKA_ADMIN_USER}
+        
+        pandaproxy:
+          pandaproxy_api:
+            - address: 0.0.0.0
+              port: 8082
+              name: internal
+            - address: 0.0.0.0
+              port: 18082
+              name: external
+          advertised_pandaproxy_api:
+            - address: staging-kafka
+              port: 8082
+              name: internal
+            - address: localhost
+              port: 18082
+              name: external
+        
+        schema_registry:
+          schema_registry_api:
+            - address: 0.0.0.0
+              port: 8081
+              name: internal
+            - address: 0.0.0.0
+              port: 18081
+              name: external
+        
+        rpk:
+          kafka_api:
+            brokers:
+              - staging-kafka:29092
+              - localhost:9092
+          admin_api:
+            addresses:
+              - staging-kafka:9644
+              - localhost:19644
+        EOF
+        
+        # Start Redpanda
+        exec /usr/bin/rpk redpanda start \
+          --advertise-kafka-addr internal://staging-kafka:29092,external://localhost:9092 \
+          --advertise-pandaproxy-addr internal://staging-kafka:8082,external://localhost:18082 \
+          --advertise-rpc-addr staging-kafka:33145 \
+          --smp 1 \
+          --memory 1G \
+          --mode dev-container \
+          --default-log-level=debug
+    volumes:
+      - staging-kafka:/var/lib/redpanda/data
+    networks:
+      - dittofeed-network-staging
+  
+  staging-kafka-setup:
+    image: redpandadata/redpanda:v23.1.1
+    profiles: ["kafka"]
+    depends_on:
+      - staging-kafka
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -ex
+        # Wait for Redpanda to be ready
+        timeout 60 bash -c 'until rpk cluster info --brokers staging-kafka:29092; do sleep 1; done'
+        
+        # Create admin user
+        rpk acl user create ${KAFKA_ADMIN_USER} --password ${KAFKA_ADMIN_PASSWORD} --mechanism SCRAM-SHA-256 --brokers staging-kafka:29092 --api-urls http://staging-kafka:9644
+        
+        # Set superusers (this enables authorization)
+        rpk cluster config set superusers '["${KAFKA_ADMIN_USER}"]' --brokers staging-kafka:29092 --api-urls http://staging-kafka:9644
+    networks:
+      - dittofeed-network-staging
+  staging-clickhouse-server:
+    image: clickhouse/clickhouse-server:24.12.6.70-alpine
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "${CLICKHOUSE_USER}", "--password", "${CLICKHOUSE_PASSWORD}", "--query", "SELECT 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    environment:
+      <<: *clickhouse-credentials
+    volumes:
+      - staging-clickhouse_lib:/var/lib/clickhouse
+      - staging-clickhouse_log:/var/log/clickhouse-server
+      - ./clickhouse/config/listen.xml:/etc/clickhouse-server/config.d/listen.xml
+    networks:
+      - dittofeed-network-staging
+  staging-otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    profiles: ["otel"]
+    command: ["--config", "/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    networks:
+      - dittofeed-network-staging
+  staging-zipkin:
+    image: openzipkin/zipkin
+    profiles: ["otel"]
+    container_name: staging-dittofeed-zipkin
+    networks:
+      - dittofeed-network-staging
+  staging-grafana:
+    image: grafana/grafana
+    profiles: ["otel"]
+    volumes:
+      - ./grafana-datasource-prometheus.yaml:/etc/grafana/provisioning/datasources/grafana-datasource-prometheus.yaml
+      - staging-grafana-storage:/var/lib/grafana
+    networks:
+      - dittofeed-network-staging
+  staging-prometheus:
+    image: prom/prometheus
+    profiles: ["otel"]
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+      - staging-prometheus-storage:/prometheus
+    networks:
+      - dittofeed-network-staging
+  staging-mail-server:
+    profiles: ["smtp"]
+    image: mailhog/mailhog
+    networks:
+      - dittofeed-network-staging
+  # Note that minio is only used for local development. In production, use any S3-compatible storage.
+  staging-blob-storage:
+    profiles: ["minio"]
+    image: minio/minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - staging-blob-storage:/data
+    command: server --console-address ":9001" /data
+    networks:
+      - dittofeed-network-staging
+
+volumes:
+  staging-postgres:
+  staging-kafka:
+  staging-clickhouse_lib:
+  staging-clickhouse_log:
+  staging-grafana-storage:
+  staging-prometheus-storage:
+  staging-blob-storage:
+
+networks:
+  dittofeed-network-staging:
+    external: true
+    name: dittofeed-network-staging
+
+  ls8k8wc4oosww04ggsgs8400:
+    external: true
+    name: ls8k8wc4oosww04ggsgs8400
+
