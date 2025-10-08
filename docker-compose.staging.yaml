@@ -92,6 +92,8 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=ls8k8wc4oosww04ggsgs8400"
+      - "traefik.http.middlewares.dittofeed-api-httpsheader.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.routers.dittofeed-api.middlewares=dittofeed-api-httpsheader"
       - "traefik.http.routers.dittofeed-api.rule=Host(`dittofeed.shortcastle.com`) && PathPrefix(`/api`)"
       - "traefik.http.routers.dittofeed-api.entrypoints=https"
       - "traefik.http.routers.dittofeed-api.tls=true"
