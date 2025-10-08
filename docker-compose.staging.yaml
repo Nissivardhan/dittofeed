@@ -53,11 +53,10 @@ services:
       <<: *backend-app-env
     networks:
       - dittofeed-network-staging
-      - ls8k8wc4oosww04ggsgs8400
     labels:
       - "traefik.http.services.staging-dashboard.loadbalancer.server.port=3000"
-      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-staging-dashboard.service=staging-dashboard"
-      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-staging-dashboard.rule=PathPrefix(`/dashboard`) || PathPrefix(`/`)"
+      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-dashboard.service=staging-dashboard"
+      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-dashboard.rule=PathPrefix(`/dashboard`) || PathPrefix(`/`)"
       - "traefik.docker.network=ls8k8wc4oosww04ggsgs8400"
   staging-api:
     build:
@@ -88,15 +87,11 @@ services:
       BOOTSTRAP_EVENTS: ${BOOTSTRAP_EVENTS}
     networks:
       - dittofeed-network-staging
-      - ls8k8wc4oosww04ggsgs8400
     labels:
-      - "traefik.enable=true"
       - "traefik.http.services.staging-api.loadbalancer.server.port=3001"
-      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-staging-api.service=staging-api"
-      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-staging-api.rule=Host(`dittofeed.shortcastle.com`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-staging-api.priority=20"
-      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-staging-api.tls.certresolver=letsencrypt"
-      - "traefik.docker.network=dittofeed-network-staging"  
+      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-api.service=staging-api"
+      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-api.rule=PathPrefix(`/api`)"
+      - "traefik.docker.network=ls8k8wc4oosww04ggsgs8400"  
   staging-worker:
     build:
       context: .
@@ -117,27 +112,6 @@ services:
       <<: *backend-app-env
     networks:
       - dittofeed-network-staging
-  staging-lite:
-    build:
-      context: .
-      dockerfile: ./packages/lite/Dockerfile
-    profiles: ["apps-lite"]
-    volumes:
-      - ./mnt:/dittofeed-mnt
-    depends_on:
-      - staging-postgres
-      - staging-temporal
-      - staging-clickhouse-server
-    environment:
-      <<: *backend-app-env
-      DASHBOARD_URL: ${SERVICE_URL_STAGING_DASHBOARD}
-      DASHBOARD_API_BASE: ${SERVICE_URL_STAGING_DASHBOARD}
-    networks:
-      - dittofeed-network-staging
-    labels:
-      - "traefik.http.services.staging-lite.loadbalancer.server.port=3000"
-      - "traefik.http.routers.staging-lite.rule=PathPrefix(`/dashboard`) || PathPrefix(`/api`) || PathPrefix(`/`)"
-      - "traefik.docker.network=dittofeed-network-staging"
   staging-admin-cli:
     build:
       context: .
