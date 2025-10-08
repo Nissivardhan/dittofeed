@@ -84,6 +84,7 @@ services:
     environment:
       <<: *backend-app-env
       BOOTSTRAP_EVENTS: ${BOOTSTRAP_EVENTS}
+      TRUST_PROXY: true
     networks:
       - dittofeed-network-staging
       - ls8k8wc4oosww04ggsgs8400
