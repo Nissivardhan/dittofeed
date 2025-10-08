@@ -88,6 +88,9 @@ services:
       <<: *backend-app-env
       BOOTSTRAP_EVENTS: ${BOOTSTRAP_EVENTS}
       TRUST_PROXY: true
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      CORS_CREDENTIALS: ${CORS_CREDENTIALS}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE}
     networks:
       - dittofeed-network-staging
       - ls8k8wc4oosww04ggsgs8400
