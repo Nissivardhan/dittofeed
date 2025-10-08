@@ -58,7 +58,7 @@ services:
       - "traefik.http.services.staging-dashboard.loadbalancer.server.port=3000"
       - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-dashboard.service=staging-dashboard"
       - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-dashboard.rule=PathPrefix(`/dashboard`) || PathPrefix(`/`)"
-      - "traefik.docker.network=ls8k8wc4oosww04ggsgs8400"
+      - "traefik.docker.network=dittofeed-network-staging"
   staging-api:
     build:
       context: .
