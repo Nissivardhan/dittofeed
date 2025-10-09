@@ -54,6 +54,8 @@ services:
       TRUST_PROXY: true
       HOST: ${HOST_ENV}
       PORT: ${PORT_ENV}
+      NEXT_PUBLIC_BASE_PATH: /
+      BASE_PATH: /
     networks:
       - dittofeed-network-staging
       - ls8k8wc4oosww04ggsgs8400
