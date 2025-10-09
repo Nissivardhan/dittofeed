@@ -96,9 +96,9 @@ export function useUniversalRouter() {
         };
         break;
       case AuthModeTypeEnum.Base:
-        basePath = process.env.NEXT_PUBLIC_BASE_PATH || "/dashboard";
+        basePath = "/dashboard";
         mapUrl = (path: string, query?: Record<string, string>, opts = {}) => {
-          const fullPath = `${opts.includeBasePath ? basePath : ""}${path}`;
+          const fullPath = `${opts.includeBasePath ? "/dashboard" : ""}${path}`;
           return `${fullPath}${opts.excludeQueryParams ? "" : `?${qs.stringify(query)}`}`;
         };
         push = (path: string, query?: Record<string, string>) =>

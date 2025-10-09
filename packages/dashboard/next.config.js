@@ -5,7 +5,7 @@ const nextConfig = {
   typescript: {
     tsconfigPath: "./tsconfig.build.json",
   },
-  basePath: process.env.NEXT_PUBLIC_BASE_PATH || "/dashboard",
+  basePath: "/dashboard",
   output: process.env.NEXT_STANDALONE !== "false" ? "standalone" : undefined,
   pageExtensions: ["page.tsx", "page.ts"],
   poweredByHeader: false,
@@ -29,19 +29,18 @@ const nextConfig = {
     ];
   },
   async redirects() {
-    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "/dashboard";
     return [
       {
         source: "/",
         destination: "/journeys",
         permanent: false,
       },
-      ...(basePath !== "/" ? [{
+      {
         source: "/",
-        destination: basePath,
+        destination: "/dashboard",
         basePath: false,
         permanent: false,
-      }] : []),
+      },
     ];
   },
   experimental: {
