@@ -103,7 +103,7 @@ const SingleTenantAuth: NextPage<SingleTenantAuthProps> =
 
     const loginMutation = useSingleTenantLoginMutation(apiBaseUrl, {
       onSuccess: () => {
-        path.push("/dashboard");
+        path.push("/");
       },
       onError: (e) => {
         if (!(e instanceof AxiosError) || e.response?.status !== 401) {
