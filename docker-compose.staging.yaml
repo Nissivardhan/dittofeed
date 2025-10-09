@@ -55,10 +55,8 @@ services:
       HOST: ${HOST_ENV}
       PORT: ${PORT_ENV}
       NEXT_PUBLIC_BASE_PATH: /
-      BASE_PATH: /
     networks:
       - dittofeed-network-staging
-      - ls8k8wc4oosww04ggsgs8400
     labels:
       - "traefik.http.services.staging-dashboard.loadbalancer.server.port=3000"
       - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-dashboard.service=staging-dashboard"
