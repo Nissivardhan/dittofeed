@@ -34,9 +34,9 @@ services:
       dockerfile: ./packages/dashboard/Dockerfile
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "node", "-e", "process.exit(0)"]
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/', res => { process.exit(res.statusCode === 200 || res.statusCode === 307 ? 0 : 1); }).on('error', () => process.exit(1));"]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 3
       start_period: 40s
     command: ["npm", "run", "start", "--", "-H", "0.0.0.0", "-p", "3000"]
@@ -56,24 +56,24 @@ services:
       PORT: ${PORT_ENV}
     networks:
       - dittofeed-network-staging
-      - ls8k8wc4oosww04ggsgs8400
     labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dittofeed-network-staging"
+      - "traefik.http.routers.staging-dashboard-http.rule=Host(`dittofeed.shortcastle.com`) && PathPrefix(`/`)"
+      - "traefik.http.routers.staging-dashboard-http.entrypoints=http"
+      - "traefik.http.routers.staging-dashboard-http.middlewares=redirect-to-https"
+      - "traefik.http.routers.staging-dashboard-https.rule=Host(`dittofeed.shortcastle.com`) && PathPrefix(`/`)"
+      - "traefik.http.routers.staging-dashboard-https.entrypoints=https"
+      - "traefik.http.routers.staging-dashboard-https.tls=true"
       - "traefik.http.services.staging-dashboard.loadbalancer.server.port=3000"
-      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-dashboard.service=staging-dashboard"
-      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-dashboard.rule=PathPrefix(`/dashboard`) || PathPrefix(`/`)"
-      - "traefik.docker.network=ls8k8wc4oosww04ggsgs8400"
+      - "traefik.http.middlewares.staging-dashboard-gzip.compress=true"
   staging-api:
     build:
       context: .
       dockerfile: ./packages/api/Dockerfile
     restart: unless-stopped
     healthcheck:
-      test: [
-        "CMD", 
-        "node", 
-        "-e", 
-        "require('http').get('http://localhost:3001/api/', res => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }).on('error', () => process.exit(1));"
-      ]
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3001/api/', res => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -96,7 +96,7 @@ services:
       - ls8k8wc4oosww04ggsgs8400
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=ls8k8wc4oosww04ggsgs8400"
+      - "traefik.docker.network=dittofeed-network-staging"
       - "traefik.http.middlewares.dittofeed-api-httpsheader.headers.customrequestheaders.X-Forwarded-Proto=https"
       - "traefik.http.routers.dittofeed-api.middlewares=dittofeed-api-httpsheader"
       - "traefik.http.routers.dittofeed-api.rule=Host(`dittofeed.shortcastle.com`) && PathPrefix(`/api`)"
