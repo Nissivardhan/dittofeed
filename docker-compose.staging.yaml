@@ -59,9 +59,16 @@ services:
       - dittofeed-network-staging
       - ls8k8wc4oosww04ggsgs8400
     labels:
-      - "traefik.http.services.staging-dashboard.loadbalancer.server.port=3000"
-      - "traefik.http.routers.https-0-ls8k8wc4oosww04ggsgs8400-dashboard.service=staging-dashboard"
-      - "traefik.docker.network=ls8k8wc4oosww04ggsgs8400" 
+      - "traefik.enable=true"
+      - "traefik.docker.network=ls8k8wc4oosww04ggsgs8400"
+      - "traefik.http.routers.dittofeed-dashboard.rule=Host(`dittofeed.shortcastle.com`) && PathPrefix(`/dashboard`)"
+      - "traefik.http.routers.dittofeed-dashboard.entrypoints=https"
+      - "traefik.http.routers.dittofeed-dashboard.tls=true"
+      - "traefik.http.services.dittofeed-dashboard.loadbalancer.server.port=3000"
+      - "traefik.http.routers.dittofeed-dashboard.priority=50"
+      # optional: preserve host header (usually automatic)
+      - "traefik.http.middlewares.dittofeed-dashboard-httpsheader.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.routers.dittofeed-dashboard.middlewares=dittofeed-dashboard-httpsheader" 
   staging-api:
     build:
       context: .
