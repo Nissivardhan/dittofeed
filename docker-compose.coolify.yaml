@@ -103,6 +103,7 @@ services:
       - POSTGRES_PWD=${DATABASE_PASSWORD}
       - POSTGRES_SEEDS=${DATABASE_HOST:-postgres}
       - TEMPORAL_CLI_SHOW_STACKS=1
+      - POSTGRES_DB_NAME=temporal
     networks:
       - dittofeed-network-lite
     healthcheck:
