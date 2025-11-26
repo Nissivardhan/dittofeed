@@ -60,6 +60,7 @@ services:
 
   # PostgreSQL Database
   postgres:
+    <<: *default-timezone
     image: postgres:${POSTGRES_VERSION:-15}
     restart: always
     environment:
