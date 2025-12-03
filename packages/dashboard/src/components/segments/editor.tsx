@@ -4,7 +4,9 @@ import {
   Autocomplete,
   Box,
   Button,
+  Checkbox,
   FormControl,
+  FormControlLabel,
   IconButton,
   InputLabel,
   MenuItem,
@@ -33,6 +35,7 @@ import {
   CompletionStatus,
   CursorDirectionEnum,
   EmailSegmentNode,
+  IncludesSegmentNode,
   InternalEventType,
   KeyedPerformedPropertiesOperator,
   KeyedPerformedSegmentNode,
@@ -65,6 +68,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import {
   DateInput,
@@ -308,6 +312,17 @@ function mapSegmentNodeToNewType(
         secondary: [],
       };
     }
+    case SegmentNodeType.Includes: {
+      return {
+        primary: {
+          type: SegmentNodeType.Includes,
+          id: node.id,
+          path: "",
+          item: "",
+        },
+        secondary: [],
+      };
+    }
     default: {
       assertUnreachable(type);
     }
@@ -538,13 +553,20 @@ const lastPerformedOption = {
   label: "Last Performed",
 };
 
+const includesOption = {
+  id: SegmentNodeType.Includes,
+  group: "User Data",
+  label: "Includes",
+};
+
 const SEGMENT_OPTIONS: SegmentGroupedOption[] = [
   traitGroupedOption,
   performedOption,
+  keyedPerformedOption,
   lastPerformedOption,
   everyoneOption,
+  includesOption,
   randomBucketOption,
-  keyedPerformedOption,
   manualOption,
   andGroupedOption,
   orGroupedOption,
@@ -566,6 +588,7 @@ const keyedSegmentOptions: Record<
   [SegmentNodeType.Email]: emailOption,
   [SegmentNodeType.LastPerformed]: lastPerformedOption,
   [SegmentNodeType.RandomBucket]: randomBucketOption,
+  [SegmentNodeType.Includes]: includesOption,
 };
 
 interface Option {
@@ -896,6 +919,7 @@ function LastPerformedSelect({ node }: { node: LastPerformedSegmentNode }) {
     ) => {
       updateEditableSegmentNodeData(setState, node.id, (n) => {
         if (n.type === SegmentNodeType.LastPerformed) {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
           const newOperator = e.target.value as SegmentOperatorType;
           const existingProperty = n.hasProperties?.[i];
           if (!existingProperty) {
@@ -1133,6 +1157,7 @@ function LastPerformedSelect({ node }: { node: LastPerformedSegmentNode }) {
     ) => {
       updateEditableSegmentNodeData(setState, node.id, (n) => {
         if (n.type === SegmentNodeType.LastPerformed) {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
           const newOperator = e.target.value as SegmentOperatorType;
           const existingProperty = n.whereProperties?.[i];
           if (!existingProperty) {
@@ -1307,6 +1332,7 @@ function PerformedSelect({ node }: { node: PerformedSegmentNode }) {
   const handleTimesOperatorChange: SelectProps["onChange"] = (e) => {
     updateEditableSegmentNodeData(setState, node.id, (n) => {
       if (n.type === SegmentNodeType.Performed) {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         n.timesOperator = e.target.value as RelationalOperators;
       }
     });
@@ -1384,6 +1410,7 @@ function PerformedSelect({ node }: { node: PerformedSegmentNode }) {
     ) => {
       updateEditableSegmentNodeData(setState, node.id, (n) => {
         if (n.type === SegmentNodeType.Performed) {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
           const newOperator = e.target.value as SegmentOperatorType;
           const existingProperty = n.properties?.[i];
           if (!existingProperty) {
@@ -1641,6 +1668,7 @@ function KeyedPerformedSelect({ node }: { node: KeyedPerformedSegmentNode }) {
   const handleTimesOperatorChange: SelectProps["onChange"] = (e) => {
     updateEditableSegmentNodeData(setState, node.id, (n) => {
       if (n.type === SegmentNodeType.KeyedPerformed) {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         n.timesOperator = e.target.value as RelationalOperators;
       }
     });
@@ -1711,6 +1739,7 @@ function KeyedPerformedSelect({ node }: { node: KeyedPerformedSegmentNode }) {
     ) => {
       updateEditableSegmentNodeData(setState, node.id, (n) => {
         if (n.type === SegmentNodeType.KeyedPerformed) {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
           const newOperator = e.target
             .value as KeyedPerformedPropertiesOperator["type"];
           const existingProperty = n.properties?.[i];
@@ -2166,6 +2195,7 @@ function AbsoluteTimestampValueSelect({
         node.type === SegmentNodeType.Trait &&
         node.operator.type === SegmentOperatorType.AbsoluteTimestamp
       ) {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         node.operator.direction = e.target.value as CursorDirectionEnum;
       }
     });
@@ -2565,11 +2595,57 @@ function RandomBucketSelect({ node }: { node: RandomBucketSegmentNode }) {
   );
 }
 
+function IncludesSelect({ node }: { node: IncludesSegmentNode }) {
+  const { state, setState } = useSegmentEditorContext();
+  const { disabled } = state;
+
+  const handlePathChange = (newPath: string) => {
+    updateEditableSegmentNodeData(setState, node.id, (n) => {
+      if (n.type === SegmentNodeType.Includes) {
+        n.path = newPath;
+      }
+    });
+  };
+
+  const handleItemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateEditableSegmentNodeData(setState, node.id, (n) => {
+      if (n.type === SegmentNodeType.Includes) {
+        n.item = e.target.value;
+      }
+    });
+  };
+
+  return (
+    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+      <Box sx={{ width: selectorWidth }}>
+        <TraitAutocomplete
+          traitPath={node.path}
+          traitOnChange={handlePathChange}
+          disabled={disabled}
+          sx={{ width: selectorWidth }}
+        />
+      </Box>
+      <Box sx={{ width: selectorWidth }}>
+        <TextField
+          disabled={disabled}
+          label="Item Value"
+          value={node.item}
+          onChange={handleItemChange}
+          InputLabelProps={{
+            shrink: true,
+          }}
+        />
+      </Box>
+    </Stack>
+  );
+}
+
 function ManualNodeComponent({ node: _node }: { node: ManualSegmentNode }) {
   const { state } = useSegmentEditorContext();
   const { disabled } = state;
   const { workspace } = useAppStorePick(["workspace"]);
   const { mutateAsync, isPending: isUploading } = useUploadCsvMutation();
+  const [append, setAppend] = useState(false);
 
   const handleSubmit = useCallback(
     async ({ data }: { data: FormData }) => {
@@ -2580,13 +2656,24 @@ function ManualNodeComponent({ node: _node }: { node: ManualSegmentNode }) {
       await mutateAsync({
         segmentId: state.editedSegment.id,
         data,
+        append,
       });
     },
-    [workspace, state.editedSegment.id, mutateAsync],
+    [workspace, state.editedSegment.id, mutateAsync, append],
   );
   return (
     <Stack direction="column" spacing={3}>
       <SubtleHeader>Upload CSV for Manual Segment</SubtleHeader>
+      <FormControlLabel
+        control={
+          <Checkbox
+            checked={append}
+            onChange={(e) => setAppend(e.target.checked)}
+            disabled={disabled || isUploading}
+          />
+        }
+        label="Append entries (unchecked replaces existing users)"
+      />
       <CsvUploader
         disabled={disabled || isUploading}
         submit={handleSubmit}
@@ -2811,6 +2898,15 @@ function SegmentNodeComponent({
         {labelEl}
         {conditionSelect}
         <EmailSelect node={node} />
+        {deleteButton}
+      </Stack>
+    );
+  } else if (node.type === SegmentNodeType.Includes) {
+    el = (
+      <Stack direction="row" spacing={1}>
+        {labelEl}
+        {conditionSelect}
+        <IncludesSelect node={node} />
         {deleteButton}
       </Stack>
     );

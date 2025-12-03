@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { unwrap } from "isomorphic-lib/src/resultHandling/resultUtils";
+import { sleep } from "isomorphic-lib/src/time";
 
 import { submitBatch } from "./apps/batch";
 import { db, insert } from "./db";
@@ -18,6 +19,7 @@ import {
   ChannelType,
   CursorDirectionEnum,
   EventType,
+  GetUsersResponseItem,
   SegmentDefinition,
   SegmentNodeType,
   SegmentOperatorType,
@@ -25,10 +27,12 @@ import {
   SubscriptionGroupType,
   UserProperty,
   UserPropertyDefinitionType,
+  UserSubscriptionItem,
   Workspace,
   WorkspaceTypeAppEnum,
 } from "./types";
 import { insertUserPropertyAssignments } from "./userProperties";
+import { upsertUserPropertyIndex } from "./userPropertyIndices";
 import { deleteUsers, getUsers, getUsersCount } from "./users";
 
 describe("users", () => {
@@ -145,7 +149,7 @@ describe("users", () => {
     describe("when a subscriptionGroupFilter is passed", () => {
       let userId1: string;
 
-      beforeEach(async () => {
+      beforeEach(() => {
         userId1 = randomUUID();
       });
 
@@ -279,6 +283,430 @@ describe("users", () => {
             );
             expect(result.users).toHaveLength(1);
           });
+        });
+      });
+
+      describe("sorting", () => {
+        it("sorts by numeric indexed property", async () => {
+          const ageProperty = unwrap(
+            await insert({
+              table: dbUserProperty,
+              values: {
+                id: randomUUID(),
+                workspaceId: workspace.id,
+                name: "age",
+                updatedAt: new Date(),
+                definition: {
+                  type: UserPropertyDefinitionType.Trait,
+                  path: "age",
+                },
+              },
+            }),
+          );
+
+          await insertUserPropertyAssignments([
+            {
+              workspaceId: workspace.id,
+              userPropertyId: ageProperty.id,
+              userId: "user-1",
+              value: JSON.stringify(30),
+            },
+            {
+              workspaceId: workspace.id,
+              userPropertyId: ageProperty.id,
+              userId: "user-2",
+              value: JSON.stringify(25),
+            },
+            {
+              workspaceId: workspace.id,
+              userPropertyId: ageProperty.id,
+              userId: "user-3",
+              value: JSON.stringify(25),
+            },
+          ]);
+
+          await upsertUserPropertyIndex({
+            workspaceId: workspace.id,
+            userPropertyId: ageProperty.id,
+            type: "Number",
+          });
+
+          await sleep(250);
+
+          const result = unwrap(
+            await getUsers({
+              workspaceId: workspace.id,
+              sortBy: ageProperty.id,
+            }),
+          );
+
+          expect(result.users.map((u) => u.id)).toEqual([
+            "user-2",
+            "user-3",
+            "user-1",
+          ]);
+          expect(
+            result.users.map((u) => u.properties[ageProperty.id]?.value),
+          ).toEqual([25, 25, 30]);
+        });
+
+        it("sorts in reverse when direction is before", async () => {
+          const scoreProperty = unwrap(
+            await insert({
+              table: dbUserProperty,
+              values: {
+                id: randomUUID(),
+                workspaceId: workspace.id,
+                name: "score-reverse",
+                updatedAt: new Date(),
+                definition: {
+                  type: UserPropertyDefinitionType.Trait,
+                  path: "scoreReverse",
+                },
+              },
+            }),
+          );
+
+          await insertUserPropertyAssignments([
+            {
+              workspaceId: workspace.id,
+              userPropertyId: scoreProperty.id,
+              userId: "user-a",
+              value: JSON.stringify(10),
+            },
+            {
+              workspaceId: workspace.id,
+              userPropertyId: scoreProperty.id,
+              userId: "user-b",
+              value: JSON.stringify(20),
+            },
+            {
+              workspaceId: workspace.id,
+              userPropertyId: scoreProperty.id,
+              userId: "user-c",
+              value: JSON.stringify(30),
+            },
+          ]);
+
+          await upsertUserPropertyIndex({
+            workspaceId: workspace.id,
+            userPropertyId: scoreProperty.id,
+            type: "Number",
+          });
+
+          await sleep(250);
+
+          const result = unwrap(
+            await getUsers({
+              workspaceId: workspace.id,
+              sortBy: scoreProperty.id,
+              direction: CursorDirectionEnum.Before,
+              limit: 3,
+            }),
+          );
+
+          expect(result.users.map((u) => u.id)).toEqual([
+            "user-c",
+            "user-b",
+            "user-a",
+          ]);
+          expect(
+            result.users.map((u) => u.properties[scoreProperty.id]?.value),
+          ).toEqual([30, 20, 10]);
+        });
+
+        it("sorts by string indexed property", async () => {
+          const nameProperty = unwrap(
+            await insert({
+              table: dbUserProperty,
+              values: {
+                id: randomUUID(),
+                workspaceId: workspace.id,
+                name: "name",
+                updatedAt: new Date(),
+                definition: {
+                  type: UserPropertyDefinitionType.Trait,
+                  path: "name",
+                },
+              },
+            }),
+          );
+
+          await insertUserPropertyAssignments([
+            {
+              workspaceId: workspace.id,
+              userPropertyId: nameProperty.id,
+              userId: "user-1",
+              value: JSON.stringify("Charlie"),
+            },
+            {
+              workspaceId: workspace.id,
+              userPropertyId: nameProperty.id,
+              userId: "user-2",
+              value: JSON.stringify("Alice"),
+            },
+            {
+              workspaceId: workspace.id,
+              userPropertyId: nameProperty.id,
+              userId: "user-3",
+              value: JSON.stringify("Bob"),
+            },
+          ]);
+
+          await upsertUserPropertyIndex({
+            workspaceId: workspace.id,
+            userPropertyId: nameProperty.id,
+            type: "String",
+          });
+
+          await sleep(250);
+
+          const result = unwrap(
+            await getUsers({
+              workspaceId: workspace.id,
+              sortBy: nameProperty.id,
+            }),
+          );
+
+          expect(result.users.map((u) => u.id)).toEqual([
+            "user-2",
+            "user-3",
+            "user-1",
+          ]);
+          expect(
+            result.users.map((u) => u.properties[nameProperty.id]?.value),
+          ).toEqual(["Alice", "Bob", "Charlie"]);
+        });
+
+        it("sorts by date indexed property", async () => {
+          const signupProperty = unwrap(
+            await insert({
+              table: dbUserProperty,
+              values: {
+                id: randomUUID(),
+                workspaceId: workspace.id,
+                name: "signupDate",
+                updatedAt: new Date(),
+                definition: {
+                  type: UserPropertyDefinitionType.Trait,
+                  path: "signupDate",
+                },
+              },
+            }),
+          );
+
+          await insertUserPropertyAssignments([
+            {
+              workspaceId: workspace.id,
+              userPropertyId: signupProperty.id,
+              userId: "user-1",
+              value: JSON.stringify("2024-01-02T00:00:00.000Z"),
+            },
+            {
+              workspaceId: workspace.id,
+              userPropertyId: signupProperty.id,
+              userId: "user-2",
+              value: JSON.stringify("2024-01-01T00:00:00.000Z"),
+            },
+            {
+              workspaceId: workspace.id,
+              userPropertyId: signupProperty.id,
+              userId: "user-3",
+              value: JSON.stringify("2024-01-02T00:00:00.000Z"),
+            },
+          ]);
+
+          await upsertUserPropertyIndex({
+            workspaceId: workspace.id,
+            userPropertyId: signupProperty.id,
+            type: "Date",
+          });
+
+          await sleep(250);
+
+          const result = unwrap(
+            await getUsers({
+              workspaceId: workspace.id,
+              sortBy: signupProperty.id,
+            }),
+          );
+
+          expect(result.users.map((u) => u.id)).toEqual([
+            "user-2",
+            "user-1",
+            "user-3",
+          ]);
+          expect(
+            result.users.map((u) => u.properties[signupProperty.id]?.value),
+          ).toEqual([
+            "2024-01-01T00:00:00.000Z",
+            "2024-01-02T00:00:00.000Z",
+            "2024-01-02T00:00:00.000Z",
+          ]);
+        });
+
+        it("paginates across indexed and remainder users at the seam", async () => {
+          const presenceProperty = unwrap(
+            await insert({
+              table: dbUserProperty,
+              values: {
+                id: randomUUID(),
+                workspaceId: workspace.id,
+                name: "presence",
+                updatedAt: new Date(),
+                definition: {
+                  type: UserPropertyDefinitionType.Trait,
+                  path: "presence",
+                },
+              },
+            }),
+          );
+          const scoreProperty = unwrap(
+            await insert({
+              table: dbUserProperty,
+              values: {
+                id: randomUUID(),
+                workspaceId: workspace.id,
+                name: "score",
+                updatedAt: new Date(),
+                definition: {
+                  type: UserPropertyDefinitionType.Trait,
+                  path: "score",
+                },
+              },
+            }),
+          );
+
+          const indexedUsers = Array.from(
+            { length: 10 },
+            (_, i) => `indexed-${String(i + 1).padStart(2, "0")}`,
+          );
+          const remainderUsers = Array.from(
+            { length: 10 },
+            (_, i) => `remainder-${String(i + 1).padStart(2, "0")}`,
+          );
+
+          await insertUserPropertyAssignments([
+            ...indexedUsers.map((id, i) => ({
+              workspaceId: workspace.id,
+              userPropertyId: presenceProperty.id,
+              userId: id,
+              value: JSON.stringify("present"),
+            })),
+            ...remainderUsers.map((id) => ({
+              workspaceId: workspace.id,
+              userPropertyId: presenceProperty.id,
+              userId: id,
+              value: JSON.stringify("present"),
+            })),
+            ...indexedUsers.map((id, i) => ({
+              workspaceId: workspace.id,
+              userPropertyId: scoreProperty.id,
+              userId: id,
+              value: JSON.stringify(i + 1),
+            })),
+          ]);
+
+          await upsertUserPropertyIndex({
+            workspaceId: workspace.id,
+            userPropertyId: scoreProperty.id,
+            type: "Number",
+          });
+
+          await sleep(250);
+
+          const pageSize = 7;
+          const page1 = unwrap(
+            await getUsers({
+              workspaceId: workspace.id,
+              sortBy: scoreProperty.id,
+              limit: pageSize,
+            }),
+          );
+
+          expect(page1.users.map((u) => u.id)).toEqual(
+            indexedUsers.slice(0, pageSize),
+          );
+          expect(page1.nextCursor).toBeDefined();
+
+          const page2 = unwrap(
+            await getUsers({
+              workspaceId: workspace.id,
+              sortBy: scoreProperty.id,
+              limit: pageSize,
+              cursor: page1.nextCursor,
+            }),
+          );
+
+          expect(page2.users.map((u) => u.id)).toEqual([
+            ...indexedUsers.slice(pageSize, 10),
+            ...remainderUsers.slice(0, pageSize - (10 - pageSize)),
+          ]);
+          expect(page2.nextCursor).toBeDefined();
+
+          const page3 = unwrap(
+            await getUsers({
+              workspaceId: workspace.id,
+              sortBy: scoreProperty.id,
+              limit: pageSize,
+              cursor: page2.nextCursor,
+            }),
+          );
+
+          expect(page3.users.map((u) => u.id)).toEqual(
+            remainderUsers.slice(pageSize - (10 - pageSize)),
+          );
+        });
+
+        it("falls back to user_id sorting when sortBy is not provided", async () => {
+          const baseProperty = unwrap(
+            await insert({
+              table: dbUserProperty,
+              values: {
+                id: randomUUID(),
+                workspaceId: workspace.id,
+                name: "identifier",
+                updatedAt: new Date(),
+                definition: {
+                  type: UserPropertyDefinitionType.Trait,
+                  path: "identifier",
+                },
+              },
+            }),
+          );
+
+          await insertUserPropertyAssignments([
+            {
+              workspaceId: workspace.id,
+              userPropertyId: baseProperty.id,
+              userId: "user-b",
+              value: JSON.stringify("b"),
+            },
+            {
+              workspaceId: workspace.id,
+              userPropertyId: baseProperty.id,
+              userId: "user-a",
+              value: JSON.stringify("a"),
+            },
+            {
+              workspaceId: workspace.id,
+              userPropertyId: baseProperty.id,
+              userId: "user-c",
+              value: JSON.stringify("c"),
+            },
+          ]);
+
+          const result = unwrap(
+            await getUsers({
+              workspaceId: workspace.id,
+            }),
+          );
+
+          expect(result.users.map((u) => u.id)).toEqual([
+            "user-a",
+            "user-b",
+            "user-c",
+          ]);
         });
       });
       describe("when the subscription group is opt-in", () => {
@@ -672,6 +1100,139 @@ describe("users", () => {
           );
           expect(userCount).toEqual(2);
         });
+      });
+    });
+
+    describe("when includeSubscriptions is true", () => {
+      let userId1: string;
+      let userId2: string;
+      let subscriptionGroupId1: string;
+      let subscriptionGroupId2: string;
+      let userPropertyId: string;
+
+      beforeEach(async () => {
+        userId1 = randomUUID();
+        userId2 = randomUUID();
+        subscriptionGroupId1 = randomUUID();
+        subscriptionGroupId2 = randomUUID();
+        userPropertyId = randomUUID();
+
+        // Create user property
+        await db()
+          .insert(dbUserProperty)
+          .values({
+            id: userPropertyId,
+            workspaceId: workspace.id,
+            name: "id",
+            updatedAt: new Date(),
+            definition: {
+              type: UserPropertyDefinitionType.Id,
+            },
+          });
+
+        // Create subscription groups
+        await upsertSubscriptionGroup({
+          id: subscriptionGroupId1,
+          workspaceId: workspace.id,
+          name: "Marketing Emails",
+          type: SubscriptionGroupType.OptOut,
+          channel: ChannelType.Email,
+        });
+        await upsertSubscriptionGroup({
+          id: subscriptionGroupId2,
+          workspaceId: workspace.id,
+          name: "Product Updates",
+          type: SubscriptionGroupType.OptIn,
+          channel: ChannelType.Email,
+        });
+
+        // Create users with property assignments
+        await insertUserPropertyAssignments([
+          {
+            userPropertyId,
+            userId: userId1,
+            workspaceId: workspace.id,
+            value: JSON.stringify(userId1),
+          },
+          {
+            userPropertyId,
+            userId: userId2,
+            workspaceId: workspace.id,
+            value: JSON.stringify(userId2),
+          },
+        ]);
+
+        // user1 opts out of marketing, user2 opts in to product updates
+        await updateUserSubscriptions({
+          workspaceId: workspace.id,
+          userUpdates: [
+            {
+              userId: userId1,
+              changes: {
+                [subscriptionGroupId1]: false, // opt out of marketing
+              },
+            },
+            {
+              userId: userId2,
+              changes: {
+                [subscriptionGroupId2]: true, // opt in to product updates
+              },
+            },
+          ],
+        });
+      });
+
+      it("returns users with subscriptions array", async () => {
+        const result = unwrap(
+          await getUsers({
+            workspaceId: workspace.id,
+            includeSubscriptions: true,
+          }),
+        );
+
+        expect(result.users.length).toBeGreaterThanOrEqual(2);
+
+        const user1: GetUsersResponseItem | undefined = result.users.find(
+          (u) => u.id === userId1,
+        );
+        const user2: GetUsersResponseItem | undefined = result.users.find(
+          (u) => u.id === userId2,
+        );
+
+        expect(user1).toBeDefined();
+        expect(user2).toBeDefined();
+        expect(user1?.subscriptions).toBeDefined();
+        expect(user2?.subscriptions).toBeDefined();
+
+        // user1 opted out of marketing (opt-out subscription), should be unsubscribed
+        const user1MarketingSub: UserSubscriptionItem | undefined =
+          user1?.subscriptions?.find((s) => s.id === subscriptionGroupId1);
+        expect(user1MarketingSub).toEqual({
+          id: subscriptionGroupId1,
+          name: "Marketing Emails",
+          subscribed: false,
+        });
+
+        // user2 opted in to product updates (opt-in subscription)
+        const user2ProductSub: UserSubscriptionItem | undefined =
+          user2?.subscriptions?.find((s) => s.id === subscriptionGroupId2);
+        expect(user2ProductSub).toEqual({
+          id: subscriptionGroupId2,
+          name: "Product Updates",
+          subscribed: true,
+        });
+      });
+
+      it("does not include subscriptions when includeSubscriptions is false or not provided", async () => {
+        const result = unwrap(
+          await getUsers({
+            workspaceId: workspace.id,
+          }),
+        );
+
+        for (const user of result.users) {
+          expect(user.subscriptions).toBeUndefined();
+        }
       });
     });
   });

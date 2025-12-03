@@ -1,7 +1,11 @@
 import { Static, TSchema, Type } from "@sinclair/typebox";
 import { Result } from "neverthrow";
 
-import { SEGMENT_ID_HEADER, WORKSPACE_ID_HEADER } from "./constants/headers";
+import {
+  MANUAL_SEGMENT_APPEND_HEADER,
+  SEGMENT_ID_HEADER,
+  WORKSPACE_ID_HEADER,
+} from "./constants/headers";
 
 export type Present<T> = T extends undefined | null ? never : T;
 
@@ -335,6 +339,7 @@ export enum SegmentNodeType {
   RandomBucket = "RandomBucket",
   KeyedPerformed = "KeyedPerformed",
   Everyone = "Everyone",
+  Includes = "Includes",
 }
 
 export const DBResourceTypeEnum = {
@@ -505,6 +510,15 @@ export const EveryoneSegmentNode = Type.Object({
 
 export type EveryoneSegmentNode = Static<typeof EveryoneSegmentNode>;
 
+export const IncludesSegmentNode = Type.Object({
+  type: Type.Literal(SegmentNodeType.Includes),
+  id: Type.String(),
+  path: Type.String(),
+  item: Type.String(),
+});
+
+export type IncludesSegmentNode = Static<typeof IncludesSegmentNode>;
+
 export const KeyedPerformedPropertiesOperator = Type.Union([
   SegmentEqualsOperator,
   SegmentNotEqualsOperator,
@@ -549,6 +563,7 @@ export const BodySegmentNode = Type.Union([
   BroadcastSegmentNode,
   SubscriptionGroupSegmentNode,
   RandomBucketSegmentNode,
+  IncludesSegmentNode,
 ]);
 
 export type BodySegmentNode = Static<typeof BodySegmentNode>;
@@ -852,7 +867,7 @@ export enum JourneyNodeType {
   SegmentSplitNode = "SegmentSplitNode",
   MessageNode = "MessageNode",
   RateLimitNode = "RateLimitNode",
-  ExperimentSplitNode = "ExperimentSplitNode",
+  RandomCohortNode = "RandomCohortNode",
   ExitNode = "ExitNode",
   // Inconsistent naming is for backwards compatibility.
   SegmentEntryNode = "EntryNode",
@@ -976,6 +991,7 @@ export const LocalTimeDelayVariant = Type.Object({
   minute: Type.Optional(Type.Number()),
   hour: Type.Number(),
   allowedDaysOfWeek: Type.Optional(Type.Array(AllowedDayIndices)),
+  defaultTimezone: Type.Optional(Type.String()),
   // TODO support additional time units
 });
 
@@ -1187,19 +1203,31 @@ export const SegmentSplitNode = Type.Object(
 
 export type SegmentSplitNode = Static<typeof SegmentSplitNode>;
 
-export const ExperimentSplitNode = Type.Object(
+export const RandomCohortChild = Type.Object({
+  id: Type.String({ description: "The id of the child node to be split to" }),
+  percent: Type.Number({
+    description:
+      "The percentage of users to be randomly assigned to be in the cohort.",
+  }),
+  name: Type.String(),
+});
+
+export type RandomCohortChild = Static<typeof RandomCohortChild>;
+
+export const RandomCohortNode = Type.Object(
   {
     ...BaseNode,
-    type: Type.Literal(JourneyNodeType.ExperimentSplitNode),
+    type: Type.Literal(JourneyNodeType.RandomCohortNode),
+    children: Type.Array(RandomCohortChild),
   },
   {
-    title: "Experiment Split Node",
+    title: "Random Cohort Node",
     description:
-      "Used to split users among experiment paths, to test their effectiveness.",
+      "Used to split users among random cohorts, to test their effectiveness.",
   },
 );
 
-export type ExperimentSplitNode = Static<typeof ExperimentSplitNode>;
+export type RandomCohortNode = Static<typeof RandomCohortNode>;
 
 export const ExitNode = Type.Object(
   {
@@ -1219,7 +1247,7 @@ export const JourneyBodyNode = Type.Union([
   RateLimitNode,
   SegmentSplitNode,
   MessageNode,
-  ExperimentSplitNode,
+  RandomCohortNode,
   WaitForNode,
 ]);
 
@@ -1448,6 +1476,16 @@ export const DeleteSegmentRequest = Type.Object({
 });
 
 export type DeleteSegmentRequest = Static<typeof DeleteSegmentRequest>;
+
+export const UpdateSegmentStatusRequest = Type.Object({
+  workspaceId: Type.String(),
+  id: Type.String(),
+  status: SegmentStatus,
+});
+
+export type UpdateSegmentStatusRequest = Static<
+  typeof UpdateSegmentStatusRequest
+>;
 
 export const UserId = Type.String({
   description:
@@ -2201,11 +2239,26 @@ export const WaitForUiNodeProps = Type.Object({
 
 export type WaitForUiNodeProps = Static<typeof WaitForUiNodeProps>;
 
+export const RandomCohortUiChild = Type.Object({
+  name: Type.String(),
+  percent: Type.Number(),
+});
+
+export type RandomCohortUiChild = Static<typeof RandomCohortUiChild>;
+
+export const RandomCohortUiNodeProps = Type.Object({
+  type: Type.Literal(JourneyNodeType.RandomCohortNode),
+  cohortChildren: Type.Array(RandomCohortUiChild),
+});
+
+export type RandomCohortUiNodeProps = Static<typeof RandomCohortUiNodeProps>;
+
 export const JourneyUiBodyNodeTypeProps = Type.Union([
   MessageUiNodeProps,
   DelayUiNodeProps,
   SegmentSplitUiNodeProps,
   WaitForUiNodeProps,
+  RandomCohortUiNodeProps,
 ]);
 
 export type JourneyUiBodyNodeTypeProps = Static<
@@ -2466,6 +2519,18 @@ export const DeleteJourneyRequest = Type.Object({
 
 export type DeleteJourneyRequest = Static<typeof DeleteJourneyRequest>;
 
+export const UserPropertyStatusEnum = {
+  NotStarted: "NotStarted",
+  Running: "Running",
+  Paused: "Paused",
+} as const;
+
+export const UserPropertyStatus = Type.KeyOf(
+  Type.Const(UserPropertyStatusEnum),
+);
+
+export type UserPropertyStatus = Static<typeof UserPropertyStatus>;
+
 export const UserPropertyResource = Type.Object({
   id: Type.String(),
   workspaceId: Type.String(),
@@ -2474,6 +2539,7 @@ export const UserPropertyResource = Type.Object({
   exampleValue: Type.Optional(Type.String()),
   updatedAt: Type.Number(),
   lastRecomputed: Type.Optional(Type.Number()),
+  status: Type.Optional(UserPropertyStatus),
 });
 
 export type UserPropertyResource = Static<typeof UserPropertyResource>;
@@ -2507,6 +2573,97 @@ export const DeleteUserPropertyRequest = Type.Object({
 
 export type DeleteUserPropertyRequest = Static<
   typeof DeleteUserPropertyRequest
+>;
+
+// User Property Index types
+export const UserPropertyIndexType = Type.Union([
+  Type.Literal("String"),
+  Type.Literal("Number"),
+  Type.Literal("Date"),
+]);
+
+export type UserPropertyIndexType = Static<typeof UserPropertyIndexType>;
+
+export const UserPropertyIndexResource = Type.Object({
+  id: Type.String(),
+  workspaceId: Type.String(),
+  userPropertyId: Type.String(),
+  type: UserPropertyIndexType,
+  createdAt: Type.Number(),
+  updatedAt: Type.Number(),
+});
+
+export type UserPropertyIndexResource = Static<
+  typeof UserPropertyIndexResource
+>;
+
+export const GetUserPropertyIndicesRequest = Type.Object({
+  workspaceId: Type.String(),
+});
+
+export type GetUserPropertyIndicesRequest = Static<
+  typeof GetUserPropertyIndicesRequest
+>;
+
+export const UpsertUserPropertyIndexRequest = Type.Object({
+  workspaceId: Type.String(),
+  userPropertyId: Type.String(),
+  type: UserPropertyIndexType,
+});
+
+export type UpsertUserPropertyIndexRequest = Static<
+  typeof UpsertUserPropertyIndexRequest
+>;
+
+export const DeleteUserPropertyIndexRequest = Type.Object({
+  workspaceId: Type.String(),
+  userPropertyId: Type.String(),
+});
+
+export type DeleteUserPropertyIndexRequest = Static<
+  typeof DeleteUserPropertyIndexRequest
+>;
+
+export const UpdateUserPropertyStatusRequest = Type.Object({
+  workspaceId: Type.String(),
+  id: Type.String(),
+  status: UserPropertyStatus,
+});
+
+export type UpdateUserPropertyStatusRequest = Static<
+  typeof UpdateUserPropertyStatusRequest
+>;
+
+export enum UpdateUserPropertyStatusErrorType {
+  ProtectedUserProperty = "ProtectedUserProperty",
+  NotFound = "NotFound",
+}
+
+export const UpdateUserPropertyStatusProtectedError = Type.Object({
+  type: Type.Literal(UpdateUserPropertyStatusErrorType.ProtectedUserProperty),
+  message: Type.String(),
+});
+
+export type UpdateUserPropertyStatusProtectedError = Static<
+  typeof UpdateUserPropertyStatusProtectedError
+>;
+
+export const UpdateUserPropertyStatusNotFoundError = Type.Object({
+  type: Type.Literal(UpdateUserPropertyStatusErrorType.NotFound),
+  message: Type.String(),
+});
+
+export type UpdateUserPropertyStatusNotFoundError = Static<
+  typeof UpdateUserPropertyStatusNotFoundError
+>;
+
+export const UpdateUserPropertyStatusError = Type.Union([
+  UpdateUserPropertyStatusProtectedError,
+  UpdateUserPropertyStatusNotFoundError,
+]);
+
+export type UpdateUserPropertyStatusError = Static<
+  typeof UpdateUserPropertyStatusError
 >;
 
 export const ReadAllUserPropertiesRequest = Type.Object({
@@ -2547,9 +2704,19 @@ export const GetUsersRequest = Type.Object({
   subscriptionGroupFilter: Type.Optional(Type.Array(Type.String())),
   userPropertyFilter: Type.Optional(GetUsersUserPropertyFilter),
   workspaceId: Type.String(),
+  includeSubscriptions: Type.Optional(Type.Boolean()),
+  sortBy: Type.Optional(Type.String()),
 });
 
 export type GetUsersRequest = Static<typeof GetUsersRequest>;
+
+export const UserSubscriptionItem = Type.Object({
+  id: Type.String(),
+  name: Type.String(),
+  subscribed: Type.Boolean(),
+});
+
+export type UserSubscriptionItem = Static<typeof UserSubscriptionItem>;
 
 const GetUsersResponseItem = Type.Object({
   id: Type.String(),
@@ -2567,6 +2734,7 @@ const GetUsersResponseItem = Type.Object({
       name: Type.String(),
     }),
   ),
+  subscriptions: Type.Optional(Type.Array(UserSubscriptionItem)),
 });
 
 export type GetUsersResponseItem = Static<typeof GetUsersResponseItem>;
@@ -4814,6 +4982,8 @@ export const FeatureConfigByType = {
 export const ManualSegmentUploadCsvHeaders = Type.Object({
   [WORKSPACE_ID_HEADER]: WorkspaceId,
   [SEGMENT_ID_HEADER]: Type.String(),
+  // Optional header to control whether new values append or replace
+  [MANUAL_SEGMENT_APPEND_HEADER]: Type.Optional(Type.String()),
 });
 
 export type ManualSegmentUploadCsvHeaders = Static<
@@ -5092,6 +5262,36 @@ export const UpsertUserPropertyError = Type.Union([
 ]);
 
 export type UpsertUserPropertyError = Static<typeof UpsertUserPropertyError>;
+
+export enum DuplicateResourceErrorType {
+  ResourceNotFound = "ResourceNotFound",
+  ProtectedResource = "ProtectedResource",
+}
+
+export const DuplicateResourceNotFoundError = Type.Object({
+  type: Type.Literal(DuplicateResourceErrorType.ResourceNotFound),
+  message: Type.String(),
+});
+
+export type DuplicateResourceNotFoundError = Static<
+  typeof DuplicateResourceNotFoundError
+>;
+
+export const DuplicateResourceProtectedError = Type.Object({
+  type: Type.Literal(DuplicateResourceErrorType.ProtectedResource),
+  message: Type.String(),
+});
+
+export type DuplicateResourceProtectedError = Static<
+  typeof DuplicateResourceProtectedError
+>;
+
+export const DuplicateResourceError = Type.Union([
+  DuplicateResourceNotFoundError,
+  DuplicateResourceProtectedError,
+]);
+
+export type DuplicateResourceError = Static<typeof DuplicateResourceError>;
 
 export const ComponentConfigurationEnum = {
   DeliveriesTable: "DeliveriesTable",
@@ -5434,6 +5634,37 @@ export const GetResourcesResponse = Type.Object({
 });
 
 export type GetResourcesResponse = Static<typeof GetResourcesResponse>;
+
+export const DuplicateResourceTypeEnum = {
+  Segment: "Segment",
+  MessageTemplate: "MessageTemplate",
+  Journey: "Journey",
+  Broadcast: "Broadcast",
+  UserProperty: "UserProperty",
+} as const;
+
+export const DuplicateResourceType = Type.KeyOf(
+  Type.Const(DuplicateResourceTypeEnum),
+);
+
+export type DuplicateResourceType = Static<typeof DuplicateResourceType>;
+
+export const DuplicateResourceRequest = Type.Object({
+  workspaceId: Type.String(),
+  name: Type.String(),
+  resourceType: DuplicateResourceType,
+});
+
+export type DuplicateResourceRequest = Static<typeof DuplicateResourceRequest>;
+
+export const DuplicateResourceResponse = Type.Object({
+  id: Type.String(),
+  name: Type.String(),
+});
+
+export type DuplicateResourceResponse = Static<
+  typeof DuplicateResourceResponse
+>;
 
 export const ListDataSourceConfigurationRequest = Type.Object({
   workspaceId: Type.String(),

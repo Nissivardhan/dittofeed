@@ -30,6 +30,7 @@ import {
   JourneyNodeType,
   JSONValue,
   MessageVariant,
+  RandomCohortNode,
   RenameKey,
   SegmentAssignment,
   SegmentAssignment as SegmentAssignmentDb,
@@ -78,17 +79,37 @@ export const trackSignal = wf.defineSignal<[TrackSignalParams]>("track");
 const WORKFLOW_NAME = "userJourneyWorkflow";
 
 const {
-  getSegmentAssignment,
   onNodeProcessedV2,
   isRunnable,
   findNextLocalizedTime,
+  findNextLocalizedTimeV2,
   getEarliestComputePropertyPeriod,
   getUserPropertyDelay,
   getWorkspace,
   shouldReEnter,
-  getEventsById,
 } = proxyActivities<typeof activities>({
   startToCloseTimeout: "2 minutes",
+});
+
+const { waitForComputeProperties } = proxyActivities<typeof activities>({
+  startToCloseTimeout: "20 minutes",
+  heartbeatTimeout: "30 seconds",
+  retry: {
+    maximumAttempts: 3,
+  },
+});
+
+const { getEventsById, getSegmentAssignment } = wf.proxyLocalActivities<
+  typeof activities
+>({
+  startToCloseTimeout: "2 minutes",
+  retry: {
+    maximumAttempts: 10,
+  },
+});
+
+const { getRandomNumber } = wf.proxyLocalActivities<typeof activities>({
+  startToCloseTimeout: "5 seconds",
 });
 
 const { reportWorkflowInfo } = wf.proxyLocalActivities<typeof activities>({
@@ -627,12 +648,27 @@ export async function userJourneyWorkflow(
           }
           case DelayVariantType.LocalTime: {
             const now = Date.now();
-            const nexTime = await findNextLocalizedTime({
-              workspaceId,
-              userId,
-              now,
-            });
-            delay = nexTime - now;
+            let nextTime: number;
+            // Use patch for backwards compatibility with existing workflows
+            if (wf.patched("local-delay-improvements")) {
+              nextTime = await findNextLocalizedTimeV2({
+                workspaceId,
+                userId,
+                now,
+                hour: currentNode.variant.hour,
+                minute: currentNode.variant.minute,
+                allowedDaysOfWeek: currentNode.variant.allowedDaysOfWeek,
+                defaultTimezone: currentNode.variant.defaultTimezone,
+              });
+            } else {
+              // Legacy behavior: hardcoded to 5 AM
+              nextTime = await findNextLocalizedTime({
+                workspaceId,
+                userId,
+                now,
+              });
+            }
+            delay = nextTime - now;
             break;
           }
           case DelayVariantType.UserProperty: {
@@ -709,7 +745,7 @@ export async function userJourneyWorkflow(
               if (assignment === null) {
                 return [];
               }
-              if (assignment.inSegment === true) {
+              if (assignment.inSegment) {
                 segmentAssignments.set(segmentId, {
                   currentlyInSegment: assignment.inSegment,
                   segmentVersion: Date.now(),
@@ -912,27 +948,41 @@ export async function userJourneyWorkflow(
         }
 
         if (currentNode.syncProperties) {
-          const now = Date.now();
+          const after = Date.now();
+          let succeeded: boolean;
 
-          // retry until compute properties workflow as run after message was sent
-          const succeeded = await retryExponential({
-            sleep,
-            check: async () => {
-              const period = await getEarliestComputePropertyPeriod({
-                workspaceId,
-              });
-              logger.debug("retrying until compute properties are updated", {
-                period,
-                now,
-                workspaceId,
-                userId,
-              });
-              return period > now;
-            },
-            logger,
-            baseDelay: 10000,
-            maxAttempts: 5,
-          });
+          if (wf.patched("wait-for-compute-properties-activity")) {
+            succeeded = await waitForComputeProperties({
+              workspaceId,
+              after,
+            });
+          } else {
+            succeeded = await retryExponential({
+              sleep,
+              check: async () => {
+                if (wf.patched("wait-for-compute-properties-activity")) {
+                  logger.error(
+                    "using deprecated in workflow retry method for syncProperties",
+                    defaultLoggingFields,
+                  );
+                  return true;
+                }
+                const period = await getEarliestComputePropertyPeriod({
+                  workspaceId,
+                });
+                logger.debug("retrying until compute properties are updated", {
+                  period,
+                  after,
+                  workspaceId,
+                  userId,
+                });
+                return period > after;
+              },
+              logger,
+              baseDelay: 10000,
+              maxAttempts: 5,
+            });
+          }
 
           if (!succeeded) {
             logger.error(
@@ -958,12 +1008,41 @@ export async function userJourneyWorkflow(
       case JourneyNodeType.ExitNode: {
         break nodeLoop;
       }
-      case JourneyNodeType.ExperimentSplitNode: {
-        logger.error("unable to handle un-implemented node type", {
-          ...defaultLoggingFields,
-          nodeType: currentNode.type,
-        });
-        nextNode = definition.exitNode;
+      case JourneyNodeType.RandomCohortNode: {
+        const cn: RandomCohortNode = currentNode;
+        // Use getRandom local activity for deterministic behavior
+        const randomValue = (await getRandomNumber()) * 100;
+
+        let cumulativePercent = 0;
+        let selectedChildId: string | null = null;
+
+        for (const child of cn.children) {
+          cumulativePercent += child.percent;
+          if (randomValue < cumulativePercent) {
+            selectedChildId = child.id;
+            break;
+          }
+        }
+
+        if (!selectedChildId) {
+          logger.error("no child selected in random cohort", {
+            ...defaultLoggingFields,
+            randomValue,
+          });
+          nextNode = definition.exitNode;
+          break;
+        }
+
+        nextNode = nodes.get(selectedChildId) ?? null;
+
+        if (!nextNode) {
+          logger.error("missing random cohort child node", {
+            ...defaultLoggingFields,
+            childId: selectedChildId,
+          });
+          nextNode = definition.exitNode;
+          break;
+        }
         break;
       }
       case JourneyNodeType.RateLimitNode: {

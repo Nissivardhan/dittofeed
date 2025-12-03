@@ -43,7 +43,7 @@ import {
   UserPropertyResource,
   WorkspaceWideEmailProviders,
 } from "isomorphic-lib/src/types";
-import { ReactNode, useMemo } from "react";
+import { ReactNode, useCallback, useMemo } from "react";
 
 import { useAppStorePick } from "../../lib/appStore";
 import {
@@ -52,6 +52,7 @@ import {
   EntryUiNodeProps,
   JourneyUiNodeDefinitionProps,
   MessageUiNodeProps,
+  RandomCohortUiNodeProps,
   SegmentSplitUiNodeProps,
   WaitForUiNodeProps,
 } from "../../lib/types";
@@ -68,6 +69,7 @@ import {
 import { SubtleHeader } from "../headers";
 import InfoTooltip from "../infoTooltip";
 import { SubscriptionGroupAutocompleteV2 } from "../subscriptionGroupAutocomplete";
+import { TimezoneAutocomplete } from "../timezoneAutocomplete";
 import findJourneyNode from "./findJourneyNode";
 import journeyNodeLabel from "./journeyNodeLabel";
 import { waitForTimeoutLabel } from "./store";
@@ -123,6 +125,108 @@ function SegmentSplitNodeFields({
         <TextField {...params} label="segment" variant="outlined" />
       )}
     />
+  );
+}
+
+function RandomCohortNodeFields({
+  nodeId,
+  nodeProps,
+  disabled,
+}: {
+  nodeId: string;
+  nodeProps: RandomCohortUiNodeProps;
+  disabled?: boolean;
+}) {
+  const {
+    updateJourneyNodeData,
+    addRandomCohortChild,
+    removeRandomCohortChild,
+  } = useAppStorePick([
+    "updateJourneyNodeData",
+    "addRandomCohortChild",
+    "removeRandomCohortChild",
+  ]);
+
+  const addCohortChild = useCallback(() => {
+    addRandomCohortChild({ nodeId });
+  }, [addRandomCohortChild, nodeId]);
+
+  const removeCohortChild = useCallback(
+    (childName: string) => {
+      removeRandomCohortChild({
+        nodeId,
+        childName,
+      });
+    },
+    [removeRandomCohortChild, nodeId],
+  );
+
+  const updateCohortPercent = (index: number, percent: number) => {
+    updateJourneyNodeData(nodeId, (node) => {
+      const props = node.data.nodeTypeProps;
+      if (props.type === JourneyNodeType.RandomCohortNode) {
+        const child = props.cohortChildren[index];
+        if (child) {
+          child.percent = percent;
+        }
+      }
+    });
+  };
+
+  const totalPercent = nodeProps.cohortChildren.reduce(
+    (sum, child) => sum + child.percent,
+    0,
+  );
+
+  return (
+    <Stack spacing={2}>
+      <Typography variant="h6">Random Cohort Split</Typography>
+      <Typography variant="body2" color="textSecondary">
+        Users will be randomly assigned to cohorts based on the percentages
+        below.
+      </Typography>
+
+      {nodeProps.cohortChildren.map((child, index) => (
+        <Stack key={child.name} direction="row" spacing={1} alignItems="center">
+          <TextField
+            label={`Cohort ${index + 1} Percentage`}
+            type="number"
+            value={child.percent}
+            onChange={(e) => updateCohortPercent(index, Number(e.target.value))}
+            disabled={disabled}
+            InputProps={{
+              endAdornment: "%",
+            }}
+            sx={{ flexGrow: 1 }}
+          />
+          <IconButton
+            onClick={() => removeCohortChild(child.name)}
+            disabled={Boolean(disabled) || nodeProps.cohortChildren.length <= 2}
+            color="error"
+            size="small"
+          >
+            <CloseOutlined />
+          </IconButton>
+        </Stack>
+      ))}
+
+      <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Button
+          variant="outlined"
+          onClick={addCohortChild}
+          disabled={disabled}
+          size="small"
+        >
+          Add Cohort
+        </Button>
+        <Typography
+          variant="body2"
+          color={totalPercent === 100 ? "success.main" : "warning.main"}
+        >
+          Total: {totalPercent}% {totalPercent !== 100 && "(Should equal 100%)"}
+        </Typography>
+      </Stack>
+    </Stack>
   );
 }
 
@@ -267,6 +371,7 @@ function EntryNodeFields({
             if (props.type !== AdditionalJourneyNodeType.EntryUiNode) {
               return;
             }
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
             const type = e.target.value as EntryNode["type"];
             if (props.variant.type === type) {
               return;
@@ -360,6 +465,7 @@ function MessageNodeFields({
     updateJourneyNodeData(nodeId, (node) => {
       const props = node.data.nodeTypeProps;
       if (props.type === JourneyNodeType.MessageNode) {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         const channel = e.target.value as ChannelType;
         const defaultSubscriptionGroup = getDefaultSubscriptionGroup({
           channel,
@@ -379,16 +485,19 @@ function MessageNodeFields({
         switch (props.channel) {
           case ChannelType.Email:
             props.providerOverride =
+              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
               (provider as WorkspaceWideEmailProviders | null) ?? undefined;
             break;
           case ChannelType.Sms:
             props.providerOverride =
+              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
               (provider as SmsProviderType | null) ?? undefined;
             break;
           case ChannelType.Webhook:
             break;
           case ChannelType.MobilePush:
             props.providerOverride =
+              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
               (provider as MobilePushProviderType | null) ?? undefined;
             break;
         }
@@ -482,6 +591,7 @@ function MessageNodeFields({
           if (!event.target.value) {
             props.senderOverride = undefined;
           } else {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
             switch (event.target.value as TwilioSenderOverrideType) {
               case TwilioSenderOverrideType.MessageSid:
                 props.senderOverride = {
@@ -575,6 +685,7 @@ function MessageNodeFields({
           if (!event.target.value) {
             props.senderOverride = undefined;
           } else {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
             switch (event.target.value as SignalWireSenderOverrideType) {
               case SignalWireSenderOverrideType.PhoneNumber:
                 props.senderOverride = {
@@ -798,6 +909,7 @@ function DelayNodeFields({
         nodeVariant.allowedDaysOfWeek ?? DAY_INDICES,
       );
       const dayEls = DAYS.map((day, i) => {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         const index = i as AllowedDayIndices;
         return (
           <Tooltip key={day.day} title={day.day}>
@@ -860,6 +972,26 @@ function DelayNodeFields({
           <SubtleHeader>Allowed Days of the Week</SubtleHeader>
           <Stack direction="row" spacing={1}>
             {dayEls}
+          </Stack>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <TimezoneAutocomplete
+              value={nodeVariant.defaultTimezone}
+              disabled={disabled}
+              label="Default Timezone (Optional)"
+              handler={(timezone) => {
+                updateJourneyNodeData(nodeId, (node) => {
+                  const props = node.data.nodeTypeProps;
+                  if (
+                    props.type === JourneyNodeType.DelayNode &&
+                    props.variant.type === DelayVariantType.LocalTime
+                  ) {
+                    props.variant.defaultTimezone = timezone ?? undefined;
+                  }
+                });
+              }}
+              sx={{ flexGrow: 1 }}
+            />
+            <InfoTooltip title="Default timezone that local time will be expressed in, if a user's timezone cannot be inferred." />
           </Stack>
         </>
       );
@@ -957,6 +1089,7 @@ function DelayNodeFields({
             if (props.type !== JourneyNodeType.DelayNode) {
               return;
             }
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
             const type = e.target.value as DelayVariantType;
             if (props.variant.type === type) {
               return;
@@ -1179,6 +1312,16 @@ function NodeFields({
       return (
         <NodeLayout deleteButton nodeId={node.id}>
           <SegmentSplitNodeFields
+            nodeId={node.id}
+            nodeProps={nodeProps}
+            disabled={disabled}
+          />
+        </NodeLayout>
+      );
+    case JourneyNodeType.RandomCohortNode:
+      return (
+        <NodeLayout deleteButton nodeId={node.id}>
+          <RandomCohortNodeFields
             nodeId={node.id}
             nodeProps={nodeProps}
             disabled={disabled}
