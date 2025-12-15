@@ -117,6 +117,7 @@ services:
       - TEMPORAL_CLI_SHOW_STACKS=1
       - POSTGRES_DB_NAME=temporal
       - BIND_ON_IP=0.0.0.0
+      - TEMPORAL_BROADCAST_ADDRESS=temporal:7233
     networks:
       - dittofeed-network-lite
     healthcheck:
