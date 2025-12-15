@@ -100,7 +100,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${CLICKHOUSE_CONTAINER_MEM_LIMIT:-2048}m
+          memory: ${CLICKHOUSE_CONTAINER_MEM_LIMIT:-3072}m
 
   # Temporal for workflow management
   temporal:
