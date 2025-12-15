@@ -30,7 +30,7 @@ services:
   # Main Dittofeed Lite Application (with single-tenant auth)
   lite:
     <<: *default-timezone
-    image: dittofeed/dittofeed-lite:${IMAGE_TAG:-v0.22.0}
+    image: dittofeed/dittofeed-lite:${IMAGE_TAG:-v0.23.0}
     command: node --max-old-space-size=${MEM_LIMIT:-1024} ./packages/lite/dist/scripts/startLite.js --workspace-name=${WORKSPACE_NAME:-Default}
     restart: always
     environment:
@@ -38,8 +38,10 @@ services:
       PORT: "3000"
       HOST: "0.0.0.0"
       BOOTSTRAP: ${BOOTSTRAP:-true}
-    ports:
-      - "3000:3000"
+    # Port binding removed - access only via Traefik reverse proxy
+    # Traefik accesses via Docker network (container name: lite)
+    # ports:
+    #   - "3000:3000"
     depends_on:
       - postgres
       - temporal
@@ -137,7 +139,7 @@ services:
 
   # Admin CLI for maintenance operations
   admin-cli:
-    image: dittofeed/dittofeed-admin-cli:${IMAGE_TAG:-v0.22.0}
+    image: dittofeed/dittofeed-admin-cli:${IMAGE_TAG:-v0.23.0}
     entrypoint: ["tail", "-f", "/dev/null"]
     depends_on:
       - postgres
