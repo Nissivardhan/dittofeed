@@ -93,10 +93,11 @@ services:
     networks:
       - dittofeed-network-lite
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8123/ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -119,11 +120,11 @@ services:
     networks:
       - dittofeed-network-lite
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:7233/api/v1/system/health || exit 1"]
+      test: ["CMD-SHELL", "pgrep -f temporal > /dev/null || exit 1"]
       interval: 15s
-      timeout: 10s
+      timeout: 5s
       retries: 5
-      start_period: 60s
+      start_period: 120s
 
   # Temporal UI (for workflow monitoring)
   temporal-ui:
