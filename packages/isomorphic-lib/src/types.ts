@@ -1645,6 +1645,12 @@ export const BaseEmailContents = Type.Object({
         "Names of user properties to attach to the email as attachments.",
     }),
   ),
+  identifierKey: Type.Optional(
+    Type.String({
+      description:
+        "Name of user property to use as recipient address. Defaults to 'email' if not specified.",
+    }),
+  ),
 });
 
 export type BaseEmailContents = Static<typeof BaseEmailContents>;
@@ -1740,6 +1746,12 @@ export type MobilePushTemplateResource = Static<
 
 const SmsContents = Type.Object({
   body: Type.String(),
+  identifierKey: Type.Optional(
+    Type.String({
+      description:
+        "Name of user property to use as recipient phone number. Defaults to 'phone' if not specified.",
+    }),
+  ),
 });
 
 export const SmsTemplateResource = Type.Composite(
@@ -1868,6 +1880,7 @@ export type UpsertMessageTemplateResource = Static<
 export enum UpsertMessageTemplateValidationErrorType {
   IdError = "IdError",
   UniqueConstraintViolation = "UniqueConstraintViolation",
+  InvalidIdentifierKey = "InvalidIdentifierKey",
 }
 
 export const UniqueConstraintViolationError = Type.Object({
@@ -1886,9 +1899,20 @@ export const IdErrorMessageTemplateViolation = Type.Object({
   message: Type.String(),
 });
 
+export const InvalidIdentifierKeyError = Type.Object({
+  type: Type.Literal(
+    UpsertMessageTemplateValidationErrorType.InvalidIdentifierKey,
+  ),
+  message: Type.String(),
+  identifierKey: Type.String(),
+});
+
+export type InvalidIdentifierKeyError = Static<typeof InvalidIdentifierKeyError>;
+
 export const UpsertMessageTemplateValidationError = Type.Union([
   UniqueConstraintViolationError,
   IdErrorMessageTemplateViolation,
+  InvalidIdentifierKeyError,
 ]);
 
 export type UpsertMessageTemplateValidationError = Static<
@@ -3645,6 +3669,56 @@ export const CsvUploadValidationError = Type.Object({
 });
 
 export type CsvUploadValidationError = Static<typeof CsvUploadValidationError>;
+
+export enum ProcessSubscriptionGroupCsvErrorType {
+  MissingHeaders = "MissingHeaders",
+  RowValidationErrors = "RowValidationErrors",
+  InvalidActionValue = "InvalidActionValue",
+  ParseError = "ParseError",
+}
+
+export const MissingHeadersCsvError = Type.Object({
+  type: Type.Literal(ProcessSubscriptionGroupCsvErrorType.MissingHeaders),
+  message: Type.String(),
+});
+
+export type MissingHeadersCsvError = Static<typeof MissingHeadersCsvError>;
+
+export const RowValidationCsvError = Type.Object({
+  type: Type.Literal(ProcessSubscriptionGroupCsvErrorType.RowValidationErrors),
+  message: Type.String(),
+  rowErrors: Type.Array(UserUploadRowErrors),
+});
+
+export type RowValidationCsvError = Static<typeof RowValidationCsvError>;
+
+export const InvalidActionValueCsvError = Type.Object({
+  type: Type.Literal(ProcessSubscriptionGroupCsvErrorType.InvalidActionValue),
+  message: Type.String(),
+  actionValue: Type.String(),
+});
+
+export type InvalidActionValueCsvError = Static<
+  typeof InvalidActionValueCsvError
+>;
+
+export const ParseCsvError = Type.Object({
+  type: Type.Literal(ProcessSubscriptionGroupCsvErrorType.ParseError),
+  message: Type.String(),
+});
+
+export type ParseCsvError = Static<typeof ParseCsvError>;
+
+export const ProcessSubscriptionGroupCsvError = Type.Union([
+  MissingHeadersCsvError,
+  RowValidationCsvError,
+  InvalidActionValueCsvError,
+  ParseCsvError,
+]);
+
+export type ProcessSubscriptionGroupCsvError = Static<
+  typeof ProcessSubscriptionGroupCsvError
+>;
 
 export enum IntegrationType {
   Sync = "Sync",
